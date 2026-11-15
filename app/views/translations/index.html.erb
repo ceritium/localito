@@ -3,7 +3,7 @@
 <form action="<%= root_path %>" method="get" class="toolbar" data-autosubmit>
   <input type="search" name="q" value="<%= @query %>" placeholder="Search keys and text" autofocus>
   <% unless @scope.empty? %><input type="hidden" name="file" value="<%= @scope %>"><% end %>
-  <select name="filter" aria-label="Filter">
+  <select name="filter" aria-label="Filter" data-combo>
     <option value="">All keys</option>
     <option value="missing" <%= @filter == "missing" ? "selected" : "" %>>Missing in any locale</option>
     <% @translations.locales.each do |locale| %>
@@ -20,6 +20,7 @@
     <summary>Locales <%= @visible.size %>/<%= @translations.locales.size %></summary>
     <div class="menu">
       <input type="hidden" name="locales_set" value="1">
+      <input type="search" class="menu-filter" placeholder="Filter locales" aria-label="Filter locales" data-filter-labels>
       <% @translations.locales.each do |locale| %>
         <label><input type="checkbox" name="locales[]" value="<%= locale %>" <%= @visible.include?(locale) ? "checked" : "" %>> <%= locale %></label>
       <% end %>
@@ -30,8 +31,11 @@
     <label><input type="radio" name="layout" value="list" <%= @layout == "list" ? "checked" : "" %>><span>List</span></label>
   </div>
   <% if @repo %>
-    <select name="base" aria-label="Compare with">
+    <select name="base" aria-label="Compare with" data-combo data-free>
       <option value="HEAD" <%= @base_ref == "HEAD" ? "selected" : "" %>>vs HEAD</option>
+      <% unless @base_ref == "HEAD" || @branches.include?(@base_ref) %>
+        <option value="<%= @base_ref %>" selected>vs <%= @base_ref %></option>
+      <% end %>
       <% @branches.each do |branch| %>
         <option value="<%= branch %>" <%= @base_ref == branch ? "selected" : "" %>>vs <%= branch %></option>
       <% end %>

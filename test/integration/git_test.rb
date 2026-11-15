@@ -26,6 +26,14 @@ class GitTest < Spinrail::IntegrationTest
     assert_includes response.body, %(<span class="badge removed">removed</span>)
   end
 
+  def test_typed_ref_stays_selected
+    git_init
+    get "/?base=HEAD~0"
+    assert_includes response.body, "comparing with <strong>HEAD~0</strong>"
+    assert_includes response.body, %(<option value="HEAD~0" selected>vs HEAD~0</option>)
+    assert_includes response.body, %(data-combo data-free>)
+  end
+
   def test_compare_with_a_branch
     git_init
     git("checkout", "-q", "-b", "feature")
