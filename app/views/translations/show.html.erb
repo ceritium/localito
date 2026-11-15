@@ -1,0 +1,21 @@
+<%= render "header", t: @translations, repo: @repo, base_ref: @base_ref, base_error: @base_error, current_branch: @current_branch %>
+
+<p><%= link_to "← All keys", root_path(q: @query, filter: @filter) %></p>
+<h1 class="key-title"><%= @name %></h1>
+
+<div id="live" data-version="<%= @version %>">
+  <div class="list single">
+    <section class="item">
+      <% @translations.locales.each do |locale| %>
+        <% entry = @translations.cell(@name, locale) %>
+        <div class="row">
+          <span class="locale"><%= locale %></span>
+          <div class="row-body">
+            <%= render "value", t: @translations, name: @name, locale: locale %>
+            <span class="where"><%= entry ? "#{@translations.relative(entry.path)}:#{entry.line}" : "would go to #{@translations.relative(@translations.target_path(@name, locale))}" %></span>
+          </div>
+        </div>
+      <% end %>
+    </section>
+  </div>
+</div>

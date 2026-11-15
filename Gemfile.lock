@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/ceritium/spinrail.git
-  revision: 2701db9617fe6d0d353303a2d00aec7dcd530f8c
+  revision: af7a356a9c17921d98700ffe768315589af51357
   branch: master
   specs:
     spinrail (0.1.0)

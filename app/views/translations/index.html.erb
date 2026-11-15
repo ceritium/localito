@@ -1,46 +1,93 @@
-<h1>Localito</h1>
-<form action="<%= root_path %>" method="get" class="search">
-  <input type="search" name="q" value="<%= @query %>" placeholder="Key or text" autofocus>
-  <label><input type="checkbox" name="missing" value="1" <%= @missing ? "checked" : "" %>> Missing only</label>
+<%= render "header", t: @translations, repo: @repo, base_ref: @base_ref, base_error: @base_error, current_branch: @current_branch %>
+
+<form action="<%= root_path %>" method="get" class="toolbar" data-autosubmit>
+  <input type="search" name="q" value="<%= @query %>" placeholder="Search keys and text" autofocus>
+  <select name="filter" aria-label="Filter">
+    <option value="">All keys</option>
+    <option value="missing" <%= @filter == "missing" ? "selected" : "" %>>Missing in any locale</option>
+    <% @translations.locales.each do |locale| %>
+      <option value="missing:<%= locale %>" <%= @filter == "missing:#{locale}" ? "selected" : "" %>>Missing in <%= locale %></option>
+    <% end %>
+    <option value="empty" <%= @filter == "empty" ? "selected" : "" %>>Empty values</option>
+    <% if @translations.comparing? %>
+      <option value="changed" <%= @filter == "changed" ? "selected" : "" %>>Changed since <%= @base_ref %></option>
+    <% end %>
+  </select>
+  <details class="locales">
+    <summary>Locales <%= @visible.size %>/<%= @translations.locales.size %></summary>
+    <div class="menu">
+      <input type="hidden" name="locales_set" value="1">
+      <% @translations.locales.each do |locale| %>
+        <label><input type="checkbox" name="locales[]" value="<%= locale %>" <%= @visible.include?(locale) ? "checked" : "" %>> <%= locale %></label>
+      <% end %>
+    </div>
+  </details>
+  <div class="segmented" role="radiogroup" aria-label="Layout">
+    <label><input type="radio" name="layout" value="table" <%= @layout == "table" ? "checked" : "" %>><span>Table</span></label>
+    <label><input type="radio" name="layout" value="list" <%= @layout == "list" ? "checked" : "" %>><span>List</span></label>
+  </div>
+  <% if @repo %>
+    <select name="base" aria-label="Compare with">
+      <option value="HEAD" <%= @base_ref == "HEAD" ? "selected" : "" %>>vs HEAD</option>
+      <% @branches.each do |branch| %>
+        <option value="<%= branch %>" <%= @base_ref == branch ? "selected" : "" %>>vs <%= branch %></option>
+      <% end %>
+    </select>
+  <% end %>
   <button>Search</button>
 </form>
 
 <div id="live" data-version="<%= @version %>">
-<p class="root"><%= @translations.root %> · <%= @translations.names.size %> keys · <%= @translations.locales.join(", ") %></p>
-
-<% @translations.errors.each do |error| %>
-  <p class="error"><%= error %></p>
-<% end %>
-
-<% if @total > @names.size %>
-  <p class="root">Showing <%= @names.size %> of <%= @total %>; narrow the search to see the rest.</p>
-<% end %>
-
-<table>
-  <thead>
-    <tr>
-      <th>Key</th>
-      <% @translations.locales.each do |locale| %>
-        <th><%= locale %></th>
-      <% end %>
-    </tr>
-  </thead>
-  <tbody>
-    <% @names.each do |name| %>
-      <tr data-row="<%= name %>">
-        <td class="key"><%= name %></td>
-        <% @translations.locales.each do |locale| %>
-          <% entry = @translations.cell(name, locale) %>
-          <% if entry.nil? %>
-            <td class="missing" data-cell="<%= locale %>.<%= name %>">missing</td>
-          <% elsif entry.editable %>
-            <td data-cell="<%= locale %>.<%= name %>"><%= link_to entry.value, edit_translation_path(name: name, locale: locale, q: @query) %></td>
-          <% else %>
-            <td class="readonly" data-cell="<%= locale %>.<%= name %>" title="Not editable here"><%= entry.value %></td>
-          <% end %>
-        <% end %>
-      </tr>
+  <section class="stats">
+    <% @translations.locales.each do |locale| %>
+      <% s = @stats[locale] %>
+      <% pct = @translations.key_count.zero? ? 100 : s[0] * 100 / @translations.key_count %>
+      <a class="stat<%= @filter == "missing:#{locale}" ? " active" : "" %>" href="<%= root_path(q: @query, filter: "missing:#{locale}") %>" title="Show keys missing in <%= locale %>">
+        <span class="stat-head"><strong><%= locale %></strong><span><%= pct %>%</span></span>
+        <span class="bar"><span style="width: <%= pct %>%"></span></span>
+        <span class="stat-detail"><%= s[0] %>/<%= @translations.key_count %><% if s[1] > 0 %> · <%= s[1] %> missing<% end %><% if s[2] > 0 %> · <%= s[2] %> changed<% end %></span>
+      </a>
     <% end %>
-  </tbody>
-</table>
+  </section>
+
+  <p class="count"><%= @total %> <%= @total == 1 ? "key" : "keys" %><% if @total > @names.size %>, showing the first <%= @names.size %>; narrow the search to see the rest<% end %>. Click a value to edit it.</p>
+
+  <% if @layout == "table" %>
+    <div class="table-wrap">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th class="key">Key</th>
+            <% @visible.each do |locale| %>
+              <th><%= locale %></th>
+            <% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @names.each do |name| %>
+            <tr>
+              <th class="key" scope="row"><%= link_to name, key_path(name: name, q: @query, filter: @filter) %></th>
+              <% @visible.each do |locale| %>
+                <td><%= render "value", t: @translations, name: name, locale: locale %></td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="list">
+      <% @names.each do |name| %>
+        <section class="item">
+          <h3><%= link_to name, key_path(name: name, q: @query, filter: @filter) %></h3>
+          <% @visible.each do |locale| %>
+            <div class="row">
+              <span class="locale"><%= locale %></span>
+              <%= render "value", t: @translations, name: name, locale: locale %>
+            </div>
+          <% end %>
+        </section>
+      <% end %>
+    </div>
+  <% end %>
 </div>

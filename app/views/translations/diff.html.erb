@@ -1,0 +1,28 @@
+<%= render "header", t: @translations, repo: @repo, base_ref: @base_ref, base_error: @base_error, current_branch: @current_branch %>
+
+<h1 class="key-title">Changes since <%= @base_ref %></h1>
+
+<div id="live" data-version="<%= @version %>">
+  <% if @changes.empty? %>
+    <p class="count">No translation differs from <%= @base_ref %>.</p>
+  <% else %>
+    <p class="count"><%= @changes.size %> <%= @changes.size == 1 ? "change" : "changes" %>.</p>
+    <div class="table-wrap">
+      <table class="grid changes">
+        <thead>
+          <tr><th>Key</th><th>Locale</th><th></th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <% @changes.each do |change| %>
+            <tr>
+              <th class="key" scope="row"><%= link_to change[0], key_path(name: change[0]) %></th>
+              <td><%= change[1] %></td>
+              <td><span class="badge <%= change[2] %>"><%= change[2] %></span></td>
+              <td><%= render "value", t: @translations, name: change[0], locale: change[1] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>

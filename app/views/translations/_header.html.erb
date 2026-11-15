@@ -1,0 +1,21 @@
+<header class="top">
+  <a class="brand" href="<%= root_path %>">Localito</a>
+  <nav>
+    <a href="<%= root_path %>">Keys</a>
+    <% if t.comparing? %><a href="<%= diff_path %>">Changes (<%= t.changes.size %>)</a><% end %>
+    <a href="<%= new_key_path %>">New key</a>
+  </nav>
+  <p class="ctx">
+    <%= t.root %>
+    <% if repo %>
+      · on <strong><%= current_branch.empty? ? "detached HEAD" : current_branch %></strong>
+      · comparing with <strong><%= base_ref %></strong>
+    <% end %>
+  </p>
+</header>
+<% unless base_error.empty? %>
+  <p class="error">Base: <%= base_error %></p>
+<% end %>
+<% t.errors.each do |error| %>
+  <p class="error"><%= error %></p>
+<% end %>

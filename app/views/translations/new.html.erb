@@ -1,0 +1,22 @@
+<%= render "header", t: @translations, repo: @repo, base_ref: @base_ref, base_error: @base_error, current_branch: @current_branch %>
+
+<h1 class="key-title">New key</h1>
+<% unless @error.empty? %>
+  <p class="error"><%= @error %></p>
+<% end %>
+
+<%= form_with url: keys_path, class: "new-key" do |f| %>
+  <label class="field">
+    <span>Key</span>
+    <input type="text" name="name" value="<%= @name %>" placeholder="posts.index.title" required autofocus>
+  </label>
+  <% @translations.locales.each do |locale| %>
+    <label class="field">
+      <span><%= locale %></span>
+      <input type="hidden" name="value_locales[]" value="<%= locale %>">
+      <textarea name="values[]" rows="2"><%= @values[locale].to_s %></textarea>
+    </label>
+  <% end %>
+  <p class="hint">Locales left blank stay missing. Each value goes to the file that already holds its closest keys.</p>
+  <button class="primary">Add key</button>
+<% end %>
