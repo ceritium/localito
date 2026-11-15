@@ -6,6 +6,9 @@ class LocaleFile
   KEY_LINE = /\A( *)("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^\s#'"\-][^:#]*?|-[^\s:#][^:#]*?) *:(?: +(.*))?\z/
 
   ESCAPES = { "\\" => "\\\\", '"' => '\\"', "\n" => "\\n", "\t" => "\\t" }.freeze
+  DATE_VALUE = /\A(\s*(?:- +|.*?: +))(\d{4}-\d\d?-\d\d?(?:[Tt ][\d:.]+(?: *(?:Z|[-+]\d\d?(?::?\d\d)?))?)?) *(#.*)?\z/
+  RUBY_TAG = %r{\A(\s*(?:- +|.*?: +))!ruby/(?!string\b|sym\b|symbol\b)[\w/]*:?([\w:]*)}
+  OBJECT_VALUE = /\A\[object: [\w:]+\]\z/
 
   attr_reader :path, :entries, :error
 
@@ -32,8 +35,48 @@ class LocaleFile
 
   def self.values(content)
     out = {}
-    flatten(YAML.safe_load(content, aliases: true), "", out, {})
+    flatten(parse(content), "", out, {})
     out
+  end
+
+  def self.parse(content)
+    YAML.safe_load(readable(content), permitted_classes: [Symbol], aliases: true)
+  end
+
+  # Spinel's Psych can't build a Date, a Time or a Ruby object, even when
+  # permitted: dates are read as text, and a !ruby/... node as "[object: X]".
+  def self.readable(content)
+    lines = content.split("\n", -1)
+    out = []
+    skip_deeper = -1
+    in_block = false
+    lines.each do |line|
+      indent = line.length - line.lstrip.length
+      if skip_deeper >= 0
+        if line.strip.empty? || indent > skip_deeper
+          out << (in_block ? line : "")
+          next
+        end
+        skip_deeper = -1
+      end
+      if line.match?(/:(?: +&\S+)? +[|>][-+0-9]*(?: +#.*)?\z/) || line.match?(/\A\s*- +[|>][-+0-9]*\z/)
+        out << line
+        skip_deeper = indent
+        in_block = true
+        next
+      end
+      if (m = line.match(RUBY_TAG))
+        name = m[2].empty? ? "Object" : m[2]
+        out << "#{m[1]}\"[object: #{name}]\""
+        skip_deeper = indent
+        in_block = false
+      elsif (m = line.match(DATE_VALUE))
+        out << "#{m[1]}'#{m[2]}'"
+      else
+        out << line
+      end
+    end
+    out.join("\n")
   end
 
   def entry(key)
@@ -98,7 +141,7 @@ class LocaleFile
     expected[key] = value
     actual = {}
     begin
-      LocaleFile.flatten(YAML.safe_load(content, aliases: true), "", actual, {})
+      LocaleFile.flatten(LocaleFile.parse(content), "", actual, {})
     rescue StandardError => e
       raise ArgumentError, "Writing #{key} would break #{@path}: #{e.message}"
     end
@@ -141,15 +184,17 @@ class LocaleFile
     values = {}
     complex = {}
     begin
-      LocaleFile.flatten(YAML.safe_load(content, aliases: true), "", values, complex)
+      LocaleFile.flatten(LocaleFile.parse(content), "", values, complex)
     rescue StandardError => e
       @error = e.message
       return
     end
-    positions = scan(content.split("\n", -1))
+    lines = content.split("\n", -1)
+    positions = scan(lines)
     values.each do |key, value|
       pos = positions[key]
       editable = !pos.nil? && !complex.key?(key)
+      editable = false if editable && value.match?(OBJECT_VALUE) && lines[pos[0] - 1].include?("!ruby/")
       @entries << LocaleEntry.new(@path, key, value, pos ? pos[0] : 0, pos ? pos[1] : 0,
                                   pos ? pos[2] : "", editable)
     end
