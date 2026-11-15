@@ -1,0 +1,28 @@
+# Spinel/* flags what spinel won't compile. Tests run on CRuby.
+require:
+  - spinrail/rubocop
+
+AllCops:
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "bin/*"
+    - "db/schema.rb"
+    - "tmp/**/*"
+    - "vendor/**/*"
+
+Spinel:
+  Exclude:
+    - "test/**/*"
+
+Style/Documentation:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/EmptyMethod:
+  EnforcedStyle: expanded

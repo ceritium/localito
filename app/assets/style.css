@@ -1,0 +1,3 @@
+body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+.notice { color: #166534; }
+.alert, .error { color: #b91c1c; }
