@@ -1,3 +1,5 @@
+require "digest"
+
 # Every locale file under root, by key without its locale and then by locale.
 # The first file to define a key wins, in glob order.
 class Translations
@@ -9,9 +11,9 @@ class Translations
   # hold, so only files changed since the last request are read again.
   def self.load(root)
     config = LocalitoConfig.new(root)
-    paths = config.paths.flat_map { |glob| Dir.glob(File.join(root, glob)) }.uniq.sort
+    paths = paths_for(root, config)
     stamps = paths.map { |path| stamp(path) }
-    signature = ([root, stamp(config.path)] + stamps).join("|")
+    signature = signature_for(root, config, paths, stamps)
     latest = @latest
     return latest if latest && @latest_stamp == signature
 
@@ -28,6 +30,23 @@ class Translations
     @latest = new(root, config, files)
     @latest_stamp = signature
     @latest
+  end
+
+  # Changes whenever a file is added, removed or written; only stats files.
+  def self.version(root)
+    config = LocalitoConfig.new(root)
+    paths = paths_for(root, config)
+    Digest::SHA256.hexdigest(signature_for(root, config, paths, paths.map { |path| stamp(path) }))[0, 16]
+  end
+
+  def self.paths_for(root, config)
+    config.paths.flat_map { |glob| Dir.glob(File.join(root, glob)) }.uniq.sort
+  end
+
+  def self.signature_for(root, config, paths, stamps)
+    parts = [root, stamp(config.path)]
+    paths.each_with_index { |path, i| parts << "#{path}:#{stamps[i]}" }
+    parts.join("|")
   end
 
   def self.stamp(path)

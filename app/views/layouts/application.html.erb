@@ -6,6 +6,7 @@
   <%= csrf_meta_tags %>
   <title><%= content_for?(:title) ? yield(:title) : "Localito" %></title>
   <%= stylesheet_link_tag "style" %>
+  <%= javascript_include_tag "live", defer: true %>
 </head>
 <body>
   <% if notice %><p class="notice"><%= notice %></p><% end %>

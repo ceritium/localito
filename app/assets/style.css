@@ -14,3 +14,7 @@ td a:hover { background: #eff6ff; }
 td.missing { background: #fef2f2; color: #b91c1c; font-style: italic; }
 td.readonly { color: #6b7280; }
 textarea { width: 100%; max-width: 50rem; font: inherit; padding: .5rem; display: block; margin-bottom: .5rem; }
+td.changed { animation: flash 2.5s ease-out; }
+@keyframes flash { from { background: #fde68a; } to { background: transparent; } }
+#disk-change pre { white-space: pre-wrap; background: #fef2f2; padding: .5rem; }
+#disk-change { margin-bottom: 1rem; }

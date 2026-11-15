@@ -1,17 +1,16 @@
-<header>
-  <h1>Localito</h1>
-  <p class="root"><%= @translations.root %> · <%= @translations.names.size %> keys · <%= @translations.locales.join(", ") %></p>
-</header>
-
-<% @translations.errors.each do |error| %>
-  <p class="error"><%= error %></p>
-<% end %>
-
+<h1>Localito</h1>
 <form action="<%= root_path %>" method="get" class="search">
   <input type="search" name="q" value="<%= @query %>" placeholder="Key or text" autofocus>
   <label><input type="checkbox" name="missing" value="1" <%= @missing ? "checked" : "" %>> Missing only</label>
   <button>Search</button>
 </form>
+
+<div id="live" data-version="<%= @version %>">
+<p class="root"><%= @translations.root %> · <%= @translations.names.size %> keys · <%= @translations.locales.join(", ") %></p>
+
+<% @translations.errors.each do |error| %>
+  <p class="error"><%= error %></p>
+<% end %>
 
 <% if @total > @names.size %>
   <p class="root">Showing <%= @names.size %> of <%= @total %>; narrow the search to see the rest.</p>
@@ -28,19 +27,20 @@
   </thead>
   <tbody>
     <% @names.each do |name| %>
-      <tr>
+      <tr data-row="<%= name %>">
         <td class="key"><%= name %></td>
         <% @translations.locales.each do |locale| %>
           <% entry = @translations.cell(name, locale) %>
           <% if entry.nil? %>
-            <td class="missing">missing</td>
+            <td class="missing" data-cell="<%= locale %>.<%= name %>">missing</td>
           <% elsif entry.editable %>
-            <td><%= link_to entry.value, edit_translation_path(name: name, locale: locale, q: @query) %></td>
+            <td data-cell="<%= locale %>.<%= name %>"><%= link_to entry.value, edit_translation_path(name: name, locale: locale, q: @query) %></td>
           <% else %>
-            <td class="readonly" title="Not editable here"><%= entry.value %></td>
+            <td class="readonly" data-cell="<%= locale %>.<%= name %>" title="Not editable here"><%= entry.value %></td>
           <% end %>
         <% end %>
       </tr>
     <% end %>
   </tbody>
 </table>
+</div>

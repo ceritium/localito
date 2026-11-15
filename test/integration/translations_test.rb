@@ -1,6 +1,7 @@
 require "fileutils"
 require "tmpdir"
 require "yaml"
+require "cgi"
 
 class TranslationsTest < Spinrail::IntegrationTest
   SAMPLE = File.expand_path("../sample_app", __dir__)
@@ -41,33 +42,33 @@ class TranslationsTest < Spinrail::IntegrationTest
 
   def test_edit_keeps_the_rest_of_the_file
     before = locale_file("en.yml")
-    patch "/translation", params: { name: "posts.index.title", locale: "en", value: "Articles" }
+    save("posts.index.title", "en", "Articles")
     assert_response :redirect
     after = locale_file("en.yml")
     assert_equal before.sub("title: Posts # inline comment", "title: Articles"), after
   end
 
   def test_edit_keeps_quoting_style
-    patch "/translation", params: { name: "hello", locale: "es", value: "Hola \"tú\"" }
+    save("hello", "es", "Hola \"tú\"")
     assert_includes locale_file("es.yml"), %(  hello: "Hola \\"tú\\"")
-    patch "/translation", params: { name: "quoted", locale: "en", value: "Isn't it" }
+    save("quoted", "en", "Isn't it")
     assert_includes locale_file("en.yml"), "  quoted: 'Isn''t it'"
   end
 
   def test_plain_value_that_yaml_would_retype_gets_quoted
-    patch "/translation", params: { name: "posts.index.title", locale: "es", value: "yes" }
+    save("posts.index.title", "es", "yes")
     assert_equal "yes", YAML.safe_load(locale_file("es.yml")).dig("es", "posts", "index", "title")
   end
 
   def test_edit_block_scalar
-    patch "/translation", params: { name: "intro", locale: "en", value: "One.\nTwo.\nThree.\n" }
+    save("intro", "en", "One.\nTwo.\nThree.\n")
     assert_includes locale_file("en.yml"), "  intro: |\n    One.\n    Two.\n    Three.\n  folded:"
-    patch "/translation", params: { name: "folded", locale: "es", value: "Una sola línea" }
+    save("folded", "es", "Una sola línea")
     assert_equal "Una sola línea", YAML.safe_load(locale_file("es.yml")).dig("es", "folded")
   end
 
   def test_every_edit_round_trips
-    patch "/translation", params: { name: "greeting", locale: "en", value: "Hi: %{name} # not a comment" }
+    save("greeting", "en", "Hi: %{name} # not a comment")
     data = YAML.safe_load(locale_file("en.yml"))
     assert_equal "Hi: %{name} # not a comment", data.dig("en", "greeting")
     assert_equal "Hello", data.dig("en", "hello")
@@ -80,13 +81,13 @@ class TranslationsTest < Spinrail::IntegrationTest
   end
 
   def test_nested_file
-    patch "/translation", params: { name: "devise.failure.locked", locale: "en", value: "Locked." }
+    save("devise.failure.locked", "en", "Locked.")
     assert_includes locale_file("devise/en.yml"), %(locked: "Locked.")
   end
 
   def test_edit_that_would_corrupt_the_file_is_refused
     before = locale_file("es.yml")
-    patch "/translation", params: { name: "next_line", locale: "es", value: "Otro" }
+    save("next_line", "es", "Otro")
     assert_response :unprocessable_entity
     assert_includes response.body, "would change other values"
     assert_equal before, locale_file("es.yml")
@@ -118,7 +119,45 @@ class TranslationsTest < Spinrail::IntegrationTest
     assert_includes response.body, ".localito.yml:"
   end
 
+  def test_changes_reports_a_new_version_when_a_file_changes
+    get "/changes"
+    before = response.body
+    get "/changes"
+    assert_equal before, response.body
+    File.write(File.join(@app_root, "config/locales/fr.yml"), "fr:\n  hello: Bonjour\n")
+    get "/changes"
+    refute_equal before, response.body
+  end
+
+  def test_save_over_a_value_changed_on_disk_is_refused
+    get "/translation/edit?name=hello&locale=es"
+    original = original_value
+    File.write(File.join(@app_root, "config/locales/es.yml"), locale_file("es.yml").sub('"Hola"', '"Buenas"'))
+    patch "/translation", params: { name: "hello", locale: "es", value: "Hey", original: original }
+    assert_response 409
+    assert_includes locale_file("es.yml"), '"Buenas"'
+    assert_equal "Buenas", original_value
+    patch "/translation", params: { name: "hello", locale: "es", value: "Hey", original: original_value }
+    assert_response :redirect
+    assert_includes locale_file("es.yml"), '"Hey"'
+  end
+
+  def test_pages_load_the_live_script
+    get "/"
+    assert_includes response.body, 'id="live"'
+    assert_match %r{<script src="/live-\w+\.js" defer}, response.body
+  end
+
   private
+
+  def save(name, locale, value)
+    get "/translation/edit?name=#{CGI.escape(name)}&locale=#{locale}"
+    patch "/translation", params: { name: name, locale: locale, value: value, original: original_value }
+  end
+
+  def original_value
+    CGI.unescapeHTML(response.body[/name="original" value="([^"]*)"/m, 1])
+  end
 
   def locale_file(name)
     File.read(File.join(@app_root, "config/locales", name))
