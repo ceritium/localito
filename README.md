@@ -35,9 +35,11 @@ The header shows which file is in use, and links to a page with the effective
 settings and every file found.
 
 ```yaml
-# Locale files to load, as globs relative to the app's root.
-paths:
-  - "config/locales/**/*.yml"
+# Locale files to load, as globs relative to the app's root, e.g.
+# "config/locales/**/*.yml". Empty: every .yml or .yaml file whose top-level
+# key is a locale (en:, pt-BR:), outside hidden folders, node_modules, vendor,
+# tmp, log, public, coverage and storage.
+paths: []
 
 # Globs to leave out, e.g. vendored locales.
 exclude: []

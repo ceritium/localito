@@ -13,7 +13,7 @@
 
 <table class="grid settings">
   <tbody>
-    <tr><th>paths</th><td><% c.paths.each do |p| %><code><%= p %></code> <% end %></td></tr>
+    <tr><th>paths</th><td><% if c.discover? %><span class="muted">none: every .yml or .yaml file whose top-level key is a locale, outside hidden folders, node_modules, vendor, tmp, log, public, coverage and storage</span><% end %><% c.paths.each do |p| %><code><%= p %></code> <% end %></td></tr>
     <tr><th>exclude</th><td><% if c.exclude.empty? %><span class="muted">none</span><% end %><% c.exclude.each do |p| %><code><%= p %></code> <% end %></td></tr>
     <tr><th>readonly</th><td><% if c.readonly.empty? %><span class="muted">none</span><% end %><% c.readonly.each do |p| %><code><%= p %></code> <% end %></td></tr>
     <tr><th>locales</th><td><%= @translations.locales.join(", ") %><% if c.locales.empty? %> <span class="muted">(found; set to fix the order)</span><% end %></td></tr>

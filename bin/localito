@@ -64,9 +64,11 @@ if [ "$command" = "init" ]; then
   cat > "$target" <<'YAML'
 # localito settings; every key is optional and shown with its default.
 
-# Locale files to load, as globs relative to the app's root.
-paths:
-  - "config/locales/**/*.yml"
+# Locale files to load, as globs relative to the app's root, e.g.
+# "config/locales/**/*.yml". Empty: every .yml or .yaml file whose top-level
+# key is a locale (en:, pt-BR:), outside hidden folders, node_modules, vendor,
+# tmp, log, public, coverage and storage.
+paths: []
 
 # Globs (relative to the root) to leave out, e.g. vendored locales.
 exclude: []

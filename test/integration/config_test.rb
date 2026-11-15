@@ -15,9 +15,31 @@ class ConfigTest < Spinrail::IntegrationTest
     write_config("readonly:\n  - config/locales/devise/**\n")
     get "/config"
     assert_response :success
-    assert_includes response.body, "<code>config/locales/**/*.yml</code>"
+    assert_includes response.body, "every .yml or .yaml file whose top-level key is a locale"
     assert_includes response.body, "<code>config/locales/devise/**</code>"
     assert_match %r{config/locales/devise/en.yml</a></th>\s*<td>en</td>\s*<td>1</td>\s*<td>\s*<span class="badge">read-only</span>}, response.body
+  end
+
+  def test_without_paths_finds_every_locale_file
+    put_file("app/components/card/en.yaml", "en:\n  card:\n    title: Card\n")
+    put_file("config/database.yml", "development:\n  adapter: sqlite3\n")
+    put_file(".github/workflows/ci.yml", "en:\n  ci: from_workflows\n")
+    put_file("node_modules/pkg/en.yml", "en:\n  pkg: skipped\n")
+    get "/"
+    assert_includes response.body, "card.title"
+    refute_includes response.body, "adapter"
+    refute_includes response.body, "<th>development</th>"
+    refute_includes response.body, "from_workflows"
+    refute_includes response.body, "skipped"
+  end
+
+  def test_paths_limit_what_is_loaded
+    put_file("app/components/card/en.yaml", "en:\n  card:\n    title: Card\n")
+    write_config("paths:\n  - config/locales/*.yml\n")
+    get "/"
+    refute_includes response.body, "card.title"
+    refute_includes response.body, "devise.failure.locked"
+    assert_includes response.body, "posts.index.title"
   end
 
   def test_exclude_leaves_files_out

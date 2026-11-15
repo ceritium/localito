@@ -30,6 +30,12 @@ module SampleApp
     File.write(File.join(@app_root, ".localito.yml"), content)
   end
 
+  def put_file(relative, content)
+    path = File.join(@app_root, relative)
+    FileUtils.mkdir_p(File.dirname(path))
+    File.write(path, content)
+  end
+
   def locale_file(name)
     File.read(File.join(@app_root, "config/locales", name))
   end

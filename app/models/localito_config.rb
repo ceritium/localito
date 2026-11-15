@@ -2,9 +2,9 @@ require "yaml"
 
 # <root>/.localito.yml, or the file in LOCALITO_CONFIG (localito -c PATH).
 # Every setting is optional; `localito init` writes them all with defaults.
+# No paths: Discovery finds the locale files.
 class LocalitoConfig
   FILE = ".localito.yml"
-  DEFAULT_PATHS = ["config/locales/**/*.yml"].freeze
   DEFAULT_NEW_KEYS = "config/locales/%{locale}.yml".freeze
 
   attr_reader :path, :paths, :exclude, :readonly, :locales, :default_locale, :base, :new_keys, :error
@@ -12,7 +12,7 @@ class LocalitoConfig
   def initialize(root)
     given = ENV["LOCALITO_CONFIG"].to_s
     @path = given.empty? ? File.join(root, FILE) : File.expand_path(given)
-    @paths = DEFAULT_PATHS.dup
+    @paths = []
     @exclude = []
     @readonly = []
     @locales = []
@@ -27,6 +27,10 @@ class LocalitoConfig
     end
   end
 
+  def discover?
+    @paths.empty?
+  end
+
   def file?
     File.exist?(@path)
   end
@@ -37,8 +41,7 @@ class LocalitoConfig
     data = YAML.safe_load(File.read(@path))
     return unless data.is_a?(Hash)
 
-    paths = strings(data["paths"])
-    @paths = paths unless paths.empty?
+    @paths = strings(data["paths"])
     @exclude = strings(data["exclude"])
     @readonly = strings(data["readonly"])
     @locales = strings(data["locales"])

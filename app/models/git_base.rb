@@ -65,6 +65,7 @@ class GitBase
     paths.each do |path|
       content, ok = GitBase.git(@root, ["show", "#{@sha}:./#{path}"])
       next unless ok
+      next if @globs.empty? && !Discovery.locale_root?(content)
 
       begin
         LocaleFile.values(content).each { |k, v| out[k] = v unless out.key?(k) }
@@ -94,7 +95,8 @@ class GitBase
     patterns = @globs.map { |glob| GitBase.glob_regexp(glob) }
     excluded = @excludes.map { |glob| GitBase.glob_regexp(glob) }
     out.split("\n").select do |path|
-      patterns.any? { |re| re.match?(path) } && excluded.none? { |re| re.match?(path) }
+      wanted = @globs.empty? ? Discovery.candidate?(path) : patterns.any? { |re| re.match?(path) }
+      wanted && excluded.none? { |re| re.match?(path) }
     end.sort
   end
 

@@ -47,7 +47,11 @@ class Translations
   end
 
   def self.paths_for(root, config)
-    found = config.paths.flat_map { |glob| Dir.glob(File.join(root, glob)) }.uniq.sort
+    found = if config.discover?
+              Discovery.paths(root)
+            else
+              config.paths.flat_map { |glob| Dir.glob(File.join(root, glob)) }.uniq.sort
+            end
     return found if config.exclude.empty?
 
     patterns = config.exclude.map { |glob| GitBase.glob_regexp(glob) }
