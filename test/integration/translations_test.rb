@@ -134,7 +134,7 @@ class TranslationsTest < Spinrail::IntegrationTest
     original = original_value
     File.write(File.join(@app_root, "config/locales/es.yml"), locale_file("es.yml").sub('"Hola"', '"Buenas"'))
     patch "/translation", params: { name: "hello", locale: "es", value: "Hey", original: original }
-    assert_response 409
+    assert_response :conflict
     assert_includes locale_file("es.yml"), '"Buenas"'
     assert_equal "Buenas", original_value
     patch "/translation", params: { name: "hello", locale: "es", value: "Hey", original: original_value }

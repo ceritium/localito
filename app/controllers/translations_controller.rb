@@ -43,7 +43,7 @@ class TranslationsController < ApplicationController
     if @entry.value != @original
       @error = "This value changed on disk since you opened it. It is now shown below; save again to replace it."
       @original = @entry.value
-      render :edit, status: 409
+      render :edit, status: :conflict
       return
     end
     begin
