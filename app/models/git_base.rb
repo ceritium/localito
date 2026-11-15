@@ -5,10 +5,11 @@ class GitBase
 
   attr_reader :root, :ref, :sha, :error
 
-  def initialize(root, ref, globs)
+  def initialize(root, ref, globs, excludes)
     @root = root
     @ref = ref
     @globs = globs
+    @excludes = excludes
     @error = ""
     out, ok = GitBase.git(root, ["rev-parse", "--verify", "--quiet", "#{ref}^{commit}"])
     @sha = ok ? out.strip : ""
@@ -56,7 +57,7 @@ class GitBase
   def values
     return {} unless available?
 
-    cache_key = "#{@root}|#{@sha}|#{@globs.join(',')}"
+    cache_key = "#{@root}|#{@sha}|#{@globs.join(',')}|#{@excludes.join(',')}"
     cached = GitBase.cached(cache_key)
     return cached if cached
 
@@ -91,7 +92,10 @@ class GitBase
     return [] unless ok
 
     patterns = @globs.map { |glob| GitBase.glob_regexp(glob) }
-    out.split("\n").select { |path| patterns.any? { |re| re.match?(path) } }.sort
+    excluded = @excludes.map { |glob| GitBase.glob_regexp(glob) }
+    out.split("\n").select do |path|
+      patterns.any? { |re| re.match?(path) } && excluded.none? { |re| re.match?(path) }
+    end.sort
   end
 
   # "config/locales/**/*.yml" as a Regexp over repo-relative paths.

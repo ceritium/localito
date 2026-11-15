@@ -4,6 +4,7 @@
     <a href="<%= root_path %>">Keys</a>
     <% if t.comparing? %><a href="<%= diff_path %>">Changes (<%= t.changes.size %>)</a><% end %>
     <a href="<%= new_key_path %>">New key</a>
+    <a href="<%= import_path %>">Import</a>
   </nav>
   <p class="ctx">
     <%= t.root %>
@@ -11,6 +12,7 @@
       · on <strong><%= current_branch.empty? ? "detached HEAD" : current_branch %></strong>
       · comparing with <strong><%= base_ref %></strong>
     <% end %>
+    · <a href="<%= settings_path %>"><%= t.config.file? ? "config: #{t.relative(t.config.path)}" : "default config" %></a>
   </p>
 </header>
 <% unless base_error.empty? %>

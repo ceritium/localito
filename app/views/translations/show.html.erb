@@ -1,6 +1,6 @@
 <%= render "header", t: @translations, repo: @repo, base_ref: @base_ref, base_error: @base_error, current_branch: @current_branch %>
 
-<p><%= link_to "← All keys", root_path(q: @query, filter: @filter) %></p>
+<p><%= link_to "← All keys", root_path(q: @query, filter: @filter, file: @scope) %></p>
 <h1 class="key-title"><%= @name %></h1>
 
 <div id="live" data-version="<%= @version %>">
@@ -12,7 +12,14 @@
           <span class="locale"><%= locale %></span>
           <div class="row-body">
             <%= render "value", t: @translations, name: @name, locale: locale %>
-            <span class="where"><%= entry ? "#{@translations.relative(entry.path)}:#{entry.line}" : "would go to #{@translations.relative(@translations.target_path(@name, locale))}" %></span>
+            <% dups = @translations.duplicates(@name, locale) %>
+            <% if dups.size > 1 %>
+              <% dups.each_with_index do |d, i| %>
+                <span class="where"><%= i.zero? ? "used:" : "ignored:" %> <%= @translations.relative(d.path) %>:<%= d.line %> — <%= d.value %></span>
+              <% end %>
+            <% else %>
+              <span class="where"><%= entry ? "#{@translations.relative(entry.path)}:#{entry.line}" : "would go to #{@translations.relative(@translations.target_path(@name, locale))}" %></span>
+            <% end %>
           </div>
         </div>
       <% end %>

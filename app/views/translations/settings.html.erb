@@ -1,0 +1,44 @@
+<%= render "header", t: @translations, repo: @repo, base_ref: @base_ref, base_error: @base_error, current_branch: @current_branch %>
+
+<h1 class="key-title">Configuration</h1>
+
+<% c = @translations.config %>
+<p class="muted">
+  <% if c.file? %>
+    Read from <code><%= c.path %></code>; changes apply on the next request.
+  <% else %>
+    No <code><%= c.path %></code>: these are the defaults. <code>localito init</code> writes them to that file.
+  <% end %>
+</p>
+
+<table class="grid settings">
+  <tbody>
+    <tr><th>paths</th><td><% c.paths.each do |p| %><code><%= p %></code> <% end %></td></tr>
+    <tr><th>exclude</th><td><% if c.exclude.empty? %><span class="muted">none</span><% end %><% c.exclude.each do |p| %><code><%= p %></code> <% end %></td></tr>
+    <tr><th>readonly</th><td><% if c.readonly.empty? %><span class="muted">none</span><% end %><% c.readonly.each do |p| %><code><%= p %></code> <% end %></td></tr>
+    <tr><th>locales</th><td><%= @translations.locales.join(", ") %><% if c.locales.empty? %> <span class="muted">(found; set to fix the order)</span><% end %></td></tr>
+    <tr><th>default_locale</th><td><%= @translations.reference %><% if c.default_locale.empty? %> <span class="muted">(the first locale)</span><% end %></td></tr>
+    <tr><th>base</th><td><code><%= c.base %></code></td></tr>
+    <tr><th>new_keys</th><td><code><%= c.new_keys %></code></td></tr>
+  </tbody>
+</table>
+
+<h2 class="section">Files (<%= @files.size %>)</h2>
+<div class="table-wrap">
+  <table class="grid changes">
+    <thead><tr><th>File</th><th>Locales</th><th>Keys</th><th></th></tr></thead>
+    <tbody>
+      <% @files.each do |f| %>
+        <tr>
+          <th class="key" scope="row"><%= link_to @translations.relative(f.path), root_path(file: @translations.group_of(f)) %></th>
+          <td><%= f.entries.map(&:locale).uniq.join(", ") %></td>
+          <td><%= f.entries.size %></td>
+          <td>
+            <% if @translations.readonly?(f.path) %><span class="badge">read-only</span><% end %>
+            <% unless f.error.empty? %><span class="badge removed"><%= f.error %></span><% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

@@ -2,6 +2,7 @@
 
 <form action="<%= root_path %>" method="get" class="toolbar" data-autosubmit>
   <input type="search" name="q" value="<%= @query %>" placeholder="Search keys and text" autofocus>
+  <% unless @scope.empty? %><input type="hidden" name="file" value="<%= @scope %>"><% end %>
   <select name="filter" aria-label="Filter">
     <option value="">All keys</option>
     <option value="missing" <%= @filter == "missing" ? "selected" : "" %>>Missing in any locale</option>
@@ -9,6 +10,8 @@
       <option value="missing:<%= locale %>" <%= @filter == "missing:#{locale}" ? "selected" : "" %>>Missing in <%= locale %></option>
     <% end %>
     <option value="empty" <%= @filter == "empty" ? "selected" : "" %>>Empty values</option>
+    <option value="interpolation" <%= @filter == "interpolation" ? "selected" : "" %>>Placeholders differ from <%= @translations.reference %></option>
+    <option value="duplicated" <%= @filter == "duplicated" ? "selected" : "" %>>Defined in several files</option>
     <% if @translations.comparing? %>
       <option value="changed" <%= @filter == "changed" ? "selected" : "" %>>Changed since <%= @base_ref %></option>
     <% end %>
@@ -38,56 +41,92 @@
 </form>
 
 <div id="live" data-version="<%= @version %>">
-  <section class="stats">
-    <% @translations.locales.each do |locale| %>
-      <% s = @stats[locale] %>
-      <% pct = @translations.key_count.zero? ? 100 : s[0] * 100 / @translations.key_count %>
-      <a class="stat<%= @filter == "missing:#{locale}" ? " active" : "" %>" href="<%= root_path(q: @query, filter: "missing:#{locale}") %>" title="Show keys missing in <%= locale %>">
-        <span class="stat-head"><strong><%= locale %></strong><span><%= pct %>%</span></span>
-        <span class="bar"><span style="width: <%= pct %>%"></span></span>
-        <span class="stat-detail"><%= s[0] %>/<%= @translations.key_count %><% if s[1] > 0 %> · <%= s[1] %> missing<% end %><% if s[2] > 0 %> · <%= s[2] %> changed<% end %></span>
-      </a>
-    <% end %>
-  </section>
-
-  <p class="count"><%= @total %> <%= @total == 1 ? "key" : "keys" %><% if @total > @names.size %>, showing the first <%= @names.size %>; narrow the search to see the rest<% end %>. Click a value to edit it.</p>
-
-  <% if @layout == "table" %>
-    <div class="table-wrap">
-      <table class="grid">
-        <thead>
-          <tr>
-            <th class="key">Key</th>
-            <% @visible.each do |locale| %>
-              <th><%= locale %></th>
-            <% end %>
-          </tr>
-        </thead>
-        <tbody>
-          <% @names.each do |name| %>
-            <tr>
-              <th class="key" scope="row"><%= link_to name, key_path(name: name, q: @query, filter: @filter) %></th>
-              <% @visible.each do |locale| %>
-                <td><%= render "value", t: @translations, name: name, locale: locale %></td>
-              <% end %>
-            </tr>
+  <div class="layout">
+    <aside class="files">
+      <details open>
+        <summary>Files</summary>
+        <nav>
+          <a class="file-row<%= @scope.empty? ? " active" : "" %>" href="<%= root_path(q: @query, filter: @filter) %>"><span>All files</span><small><%= @translations.key_count %></small></a>
+          <% @tree.each do |row| %>
+            <a class="file-row<%= row.folder ? " folder" : "" %><%= @scope == row.path ? " active" : "" %>" style="padding-left: <%= row.depth * 0.8 + 0.4 %>rem" href="<%= root_path(q: @query, filter: @filter, file: row.path) %>" title="<%= row.path %>">
+              <span><%= row.label %></span>
+              <small><%= row.keys %><% if row.missing > 0 %> · <em><%= row.missing %> missing</em><% end %></small>
+            </a>
           <% end %>
-        </tbody>
-      </table>
-    </div>
-  <% else %>
-    <div class="list">
-      <% @names.each do |name| %>
-        <section class="item">
-          <h3><%= link_to name, key_path(name: name, q: @query, filter: @filter) %></h3>
+        </nav>
+      </details>
+    </aside>
+
+    <div class="main">
+      <% if @translations.duplicate_count > 0 && @filter != "duplicated" %>
+        <p class="warning"><%= @translations.duplicate_count %> <%= @translations.duplicate_count == 1 ? "key is" : "keys are" %> defined in more than one file; only the first is used. <%= link_to "Show them", root_path(filter: "duplicated") %></p>
+      <% end %>
+
+      <section class="stats">
+        <% @translations.locales.each do |locale| %>
+          <% s = @stats[locale] %>
+          <% pct = @translations.key_count.zero? ? 100 : s[0] * 100 / @translations.key_count %>
+          <a class="stat<%= @filter == "missing:#{locale}" ? " active" : "" %>" href="<%= root_path(q: @query, filter: "missing:#{locale}", file: @scope) %>" title="Show keys missing in <%= locale %>">
+            <span class="stat-head"><strong><%= locale %></strong><span><%= pct %>%</span></span>
+            <span class="bar"><span style="width: <%= pct %>%"></span></span>
+            <span class="stat-detail"><%= s[0] %>/<%= @translations.key_count %><% if s[1] > 0 %> · <%= s[1] %> missing<% end %><% if s[2] > 0 %> · <%= s[2] %> changed<% end %></span>
+          </a>
+        <% end %>
+      </section>
+
+      <div class="count">
+        <span>
+          <%= @total %> <%= @total == 1 ? "key" : "keys" %><% unless @scope.empty? %> in <strong><%= @scope %></strong> (<%= link_to "all files", root_path(q: @query, filter: @filter) %>)<% end %><% if @total > @names.size %>, showing the first <%= @names.size %>; narrow the search to see the rest<% end %>.
+          Click a value to edit it; <kbd>n</kbd>/<kbd>p</kbd> jump to the next or previous missing one.
+        </span>
+        <span class="export">
+          Export:
+          <%= link_to "CSV", export_path(q: @query, filter: @filter, file: @scope, format: "csv") %>
           <% @visible.each do |locale| %>
-            <div class="row">
-              <span class="locale"><%= locale %></span>
-              <%= render "value", t: @translations, name: name, locale: locale %>
-            </div>
+            <% next if locale == @translations.reference %>
+            · <%= link_to "XLIFF #{@translations.reference}→#{locale}", export_path(q: @query, filter: @filter, file: @scope, format: "xliff", target: locale) %>
           <% end %>
-        </section>
+        </span>
+      </div>
+
+      <% if @layout == "table" %>
+        <div class="table-wrap">
+          <table class="grid">
+            <thead>
+              <tr>
+                <th class="key">Key</th>
+                <% @visible.each do |locale| %>
+                  <th><%= locale %></th>
+                <% end %>
+              </tr>
+            </thead>
+            <tbody>
+              <% @names.each do |name| %>
+                <tr>
+                  <th class="key" scope="row"><%= link_to name, key_path(name: name, q: @query, filter: @filter, file: @scope) %></th>
+                  <% @visible.each do |locale| %>
+                    <td><%= render "value", t: @translations, name: name, locale: locale %></td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <div class="list">
+          <% @names.each do |name| %>
+            <section class="item">
+              <h3><%= link_to name, key_path(name: name, q: @query, filter: @filter, file: @scope) %></h3>
+              <% @visible.each do |locale| %>
+                <div class="row">
+                  <span class="locale"><%= locale %></span>
+                  <%= render "value", t: @translations, name: name, locale: locale %>
+                </div>
+              <% end %>
+            </section>
+          <% end %>
+        </div>
       <% end %>
     </div>
-  <% end %>
+  </div>
 </div>

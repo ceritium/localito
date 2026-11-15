@@ -1,0 +1,59 @@
+<%= render "header", t: @translations, repo: @repo, base_ref: @base_ref, base_error: @base_error, current_branch: @current_branch %>
+
+<h1 class="key-title">Import</h1>
+
+<% unless @result.empty? %><p class="notice"><%= @result %></p><% end %>
+<% unless @error.empty? %><p class="error pre"><%= @error %></p><% end %>
+
+<% if @rows.empty? %>
+  <%= form_with url: preview_import_path, class: "import" do %>
+    <p class="muted">
+      Paste a CSV with a <code>key</code> column and one column per locale (as Export writes it),
+      or an XLIFF 1.2 file. Empty values are skipped; nothing is written until you confirm.
+    </p>
+    <input type="file" accept=".csv,.xlf,.xliff,.xml,text/csv" data-fill="import-text">
+    <textarea id="import-text" name="text" rows="14" placeholder="key,en,es&#10;posts.index.title,Posts,Entradas"><%= @text %></textarea>
+    <button class="primary">Preview</button>
+  <% end %>
+<% else %>
+  <% counts = {} %>
+  <% @rows.each { |r| counts[r.status] = (counts[r.status] || 0) + 1 } %>
+  <p class="count">
+    <%= counts["new"] || 0 %> new · <%= counts["changed"] || 0 %> changed · <%= counts["same"] || 0 %> unchanged<% if counts["error"] %> · <%= counts["error"] %> can't be written<% end %>
+  </p>
+  <%= form_with url: apply_import_path do %>
+    <div class="table-wrap">
+      <table class="grid changes">
+        <thead><tr><th></th><th>Key</th><th>Locale</th><th>Now</th><th>Imported</th></tr></thead>
+        <tbody>
+          <% @rows.reject { |r| r.status == "same" }.each_with_index do |row, i| %>
+            <tr class="import-<%= row.status %>">
+              <td>
+                <% if row.status == "error" %>
+                  <span class="badge removed"><%= row.message %></span>
+                <% else %>
+                  <input type="checkbox" name="picks[]" value="<%= i %>" checked aria-label="Import <%= row.locale %>.<%= row.name %>">
+                <% end %>
+                <input type="hidden" name="names[]" value="<%= row.name %>">
+                <input type="hidden" name="locales_in[]" value="<%= row.locale %>">
+                <input type="hidden" name="values[]" value="<%= row.value %>">
+                <input type="hidden" name="originals[]" value="<%= row.current %>">
+                <input type="hidden" name="missings[]" value="<%= row.missing? ? "1" : "0" %>">
+              </td>
+              <th class="key" scope="row"><%= link_to row.name, key_path(name: row.name) %></th>
+              <td><%= row.locale %></td>
+              <td>
+                <% if row.status == "new" %><span class="badge added">new</span> <small class="where"><%= row.message %></small><% else %><div class="cell"><div class="base"><%= row.current %></div></div><% end %>
+              </td>
+              <td><div class="cell modified"><div class="now"><%= row.value %></div></div></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <p class="actions">
+      <button class="primary">Write the checked values</button>
+      <%= link_to "Start over", import_path %>
+    </p>
+  <% end %>
+<% end %>

@@ -10,7 +10,7 @@ module SampleApp
   def setup
     @app_root = Dir.mktmpdir("localito-test")
     FileUtils.cp_r("#{SAMPLE}/.", @app_root)
-    self.class.server_env("LOCALITO_ROOT" => @app_root)
+    self.class.server_env("LOCALITO_ROOT" => @app_root, "LOCALITO_CONFIG" => config_env)
     super
   end
 
@@ -20,6 +20,15 @@ module SampleApp
   end
 
   private
+
+  # LOCALITO_CONFIG for the server; "" reads <root>/.localito.yml.
+  def config_env
+    ""
+  end
+
+  def write_config(content)
+    File.write(File.join(@app_root, ".localito.yml"), content)
+  end
 
   def locale_file(name)
     File.read(File.join(@app_root, "config/locales", name))

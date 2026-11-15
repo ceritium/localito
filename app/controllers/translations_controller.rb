@@ -4,18 +4,83 @@ class TranslationsController < ApplicationController
   before_action :prepare, except: [:version]
 
   def index
-    @query = params[:q].to_s
-    @filter = params[:filter].to_s
-    found = @translations.search(@query, @filter, @visible)
+    found = @translations.search(@query, @filter, @visible, @scope)
     @total = found.size
     @names = found.first(LIMIT)
     @stats = @translations.stats
+    @tree = @translations.tree(@visible)
+  end
+
+  # The keys the list shows (search, filter, file), all of them.
+  def export
+    names = @translations.search(@query, @filter, @visible, @scope)
+    if params[:format].to_s == "xliff"
+      source = @translations.reference
+      target = params[:target].to_s
+      unless @translations.locales.include?(target) && target != source
+        render plain: "Pick a target locale other than #{source}", status: :unprocessable_entity
+        return
+      end
+      send_data Exchange.xliff(@translations, names, source, target), type: "application/x-xliff+xml",
+                                                                      filename: "localito-#{source}-#{target}.xlf"
+    else
+      send_data Exchange.csv(@translations, names, @visible), type: "text/csv", filename: "localito.csv"
+    end
+  end
+
+  def import
+    @text = ""
+    @rows = []
+    @error = ""
+    @result = ""
+  end
+
+  def preview_import
+    @text = params[:text].to_s
+    @rows = []
+    @error = ""
+    @result = ""
+    begin
+      @rows = @translations.preview_import(Exchange.parse(@text))
+      @error = "Nothing to import: every value is empty" if @rows.empty?
+    rescue ArgumentError => e
+      @error = e.message
+    end
+    render :import
+  end
+
+  def apply_import
+    names = params.fetch(:names, [])
+    locales = params.fetch(:locales_in, [])
+    values = params.fetch(:values, [])
+    originals = params.fetch(:originals, [])
+    missings = params.fetch(:missings, [])
+    picks = params.fetch(:picks, []).map(&:to_s)
+    applied = 0
+    failed = []
+    names.each_with_index do |name, i|
+      next unless picks.include?(i.to_s)
+
+      begin
+        @translations.set(name.to_s, locales[i].to_s, values[i].to_s, originals[i].to_s, missings[i].to_s == "1")
+        applied += 1
+      rescue Translations::Conflict, ArgumentError => e
+        failed << "#{locales[i]}.#{name}: #{e.message}"
+      end
+    end
+    @text = ""
+    @rows = []
+    @error = failed.join("\n")
+    @result = "#{applied} #{applied == 1 ? 'value' : 'values'} written."
+    render :import
+  end
+
+  def settings
+    @files = @translations.files
   end
 
   def show
     @name = params[:name].to_s
-    @query = params[:q].to_s
-    @filter = params[:filter].to_s
     render plain: "Not found", status: :not_found unless @translations.names.include?(@name)
   end
 
@@ -93,6 +158,9 @@ class TranslationsController < ApplicationController
   # Layout, visible locales and base ref stick in the session once chosen.
   def prepare
     @translations = Translations.load(root)
+    @query = params[:q].to_s
+    @filter = params[:filter].to_s
+    @scope = params[:file].to_s
     session[:layout] = params[:layout].to_s if %w[table list].include?(params[:layout].to_s)
     session[:locales] = params.fetch(:locales, []).join(",") if params[:locales_set].to_s == "1"
     session[:base] = params[:base].to_s unless params[:base].to_s.empty?
@@ -104,7 +172,7 @@ class TranslationsController < ApplicationController
     @branches = []
     @current_branch = ""
     if @repo
-      base = GitBase.new(root, @base_ref, @translations.config.paths)
+      base = GitBase.new(root, @base_ref, @translations.config.paths, @translations.config.exclude)
       @base_error = base.error
       @translations.compare(base.available? ? base.sha : "", base.values)
       @branches = GitBase.branches(root)

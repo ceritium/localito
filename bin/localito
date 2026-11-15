@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# localito [DIR] [-c CONFIG] [-p PORT] [--no-open]   browse and edit DIR's locale files
+# localito init [DIR] [-c CONFIG]                     write the default config
+set -euo pipefail
+
+self=$(readlink -f "$0" 2>/dev/null || echo "$0")
+app=$(cd "$(dirname "$self")/.." && pwd)
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  localito [DIR] [options]        browse and edit DIR's locale files (default: .)
+  localito init [DIR] [options]   write DIR/.localito.yml with every setting
+
+Options:
+  -c, --config PATH   config file (default: DIR/.localito.yml)
+  -p, --port PORT     first port to try (default: $LOCALITO_PORT or 3900)
+      --no-open       don't open the browser
+  -h, --help          this help
+
+The server log goes to log/localito.log in the localito checkout.
+USAGE
+}
+
+command="serve"
+if [ "${1:-}" = "init" ]; then command="init"; shift; fi
+
+root="."
+config=""
+port="${LOCALITO_PORT:-3900}"
+open_browser=1
+root_set=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -c|--config) config="${2:?--config needs a path}"; shift 2 ;;
+    --config=*) config="${1#*=}"; shift ;;
+    -p|--port) port="${2:?--port needs a number}"; shift 2 ;;
+    --port=*) port="${1#*=}"; shift ;;
+    --no-open) open_browser=0; shift ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "localito: unknown option $1" >&2; usage >&2; exit 2 ;;
+    *)
+      [ $root_set -eq 0 ] || { echo "localito: one directory at a time" >&2; exit 2; }
+      root="$1"; root_set=1; shift ;;
+  esac
+done
+
+root=$(cd "$root" 2>/dev/null && pwd) || { echo "localito: no such directory: $root" >&2; exit 1; }
+if [ -n "$config" ]; then
+  config=$(cd "$(dirname "$config")" 2>/dev/null && echo "$(pwd)/$(basename "$config")") \
+    || { echo "localito: no such directory for $config" >&2; exit 1; }
+fi
+
+if [ "$command" = "init" ]; then
+  target="${config:-$root/.localito.yml}"
+  if [ -e "$target" ]; then
+    echo "localito: $target already exists" >&2
+    exit 1
+  fi
+  cat > "$target" <<'YAML'
+# localito settings; every key is optional and shown with its default.
+
+# Locale files to load, as globs relative to the app's root.
+paths:
+  - "config/locales/**/*.yml"
+
+# Globs (relative to the root) to leave out, e.g. vendored locales.
+exclude: []
+
+# Globs of files that are shown but never written.
+readonly: []
+
+# Column order; locales not listed follow, sorted. Empty: all, sorted.
+locales: []
+
+# The reference locale: first column, and what placeholders (%{count}) and
+# XLIFF exports are checked against. Empty: the first locale.
+default_locale: ""
+
+# Git ref the working tree is compared with.
+base: HEAD
+
+# Where a new key goes when no file of its locale shares a prefix with it.
+new_keys: "config/locales/%{locale}.yml"
+YAML
+  echo "localito: wrote $target"
+  exit 0
+fi
+
+if [ -n "$config" ] && [ ! -f "$config" ]; then
+  echo "localito: no such config: $config (localito init -c $config writes one)" >&2
+  exit 1
+fi
+
+while nc -z localhost "$port" 2>/dev/null; do port=$((port + 1)); done
+[ -x "$app/localito" ] || (cd "$app" && bin/spinrail build)
+mkdir -p "$app/log"
+log="$app/log/localito.log"
+
+echo "localito: $root on http://localhost:$port (Ctrl+C to stop)"
+[ -n "$config" ] && echo "localito: config $config"
+if [ $open_browser -eq 1 ] && command -v open >/dev/null; then
+  (sleep 1 && open "http://localhost:$port") &
+fi
+
+# Runs from the checkout: the binary writes db/, log/ and tmp/ where it starts.
+set +e
+(cd "$app" && LOCALITO_ROOT="$root" LOCALITO_CONFIG="$config" ./localito -p "$port" >> "$log" 2>&1)
+code=$?
+set -e
+if [ $code -ne 0 ] && [ $code -ne 130 ]; then
+  echo "localito: server exited with $code; last lines of $log:" >&2
+  tail -n 15 "$log" >&2
+fi
+exit $code

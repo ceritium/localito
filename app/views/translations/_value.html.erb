@@ -1,6 +1,9 @@
 <% entry = t.cell(name, locale) %>
 <% kind = t.change(name, locale) %>
-<div class="cell <%= kind %><%= entry.nil? ? " is-missing" : "" %>" data-cell="<%= locale %>.<%= name %>" data-name="<%= name %>" data-locale="<%= locale %>" data-original="<%= entry ? entry.value : "" %>" data-missing="<%= entry ? "0" : "1" %>" data-editable="<%= entry.nil? || entry.editable ? "1" : "0" %>">
+<% editable = t.editable?(name, locale) %>
+<% issue = t.interpolation_issue(name, locale) %>
+<% dups = t.duplicates(name, locale) %>
+<div class="cell <%= kind %><%= entry.nil? ? " is-missing" : "" %>" data-cell="<%= locale %>.<%= name %>" data-name="<%= name %>" data-locale="<%= locale %>" data-original="<%= entry ? entry.value : "" %>" data-missing="<%= entry ? "0" : "1" %>" data-editable="<%= editable ? "1" : "0" %>">
   <% if kind == "modified" || kind == "removed" %>
     <div class="base" title="At the base"><%= t.base_value(name, locale) %></div>
   <% end %>
@@ -9,6 +12,12 @@
   <% elsif entry.value.empty? %>
     <div class="now blank">empty</div>
   <% else %>
-    <div class="now<%= entry.editable ? "" : " readonly" %>"><%= entry.value %></div>
+    <div class="now<%= editable ? "" : " readonly" %>"><%= entry.value %></div>
+  <% end %>
+  <% unless issue.empty? %>
+    <p class="flag warn"><%= issue %></p>
+  <% end %>
+  <% if dups.size > 1 %>
+    <p class="flag dup" title="<%= dups.map { |d| "#{t.relative(d.path)}:#{d.line} #{d.value}" }.join("\n") %>">defined in <%= dups.size %> files; the first wins</p>
   <% end %>
 </div>
