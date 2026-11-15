@@ -76,6 +76,36 @@ class YamlShapesTest < Spinrail::IntegrationTest
     assert_includes response.body, "Entradas"
   end
 
+  def test_crlf_files_are_editable_and_keep_crlf
+    write_locale("fr.yml", "fr:\r\n  one: Un\r\n  nested:\r\n    two: Deux\r\n")
+    save("nested.two", "fr", "Zwei")
+    assert_response :success
+    save("hello", "fr", "Bonjour")
+    assert_response :success
+    assert_equal "fr:\r\n  one: Un\r\n  nested:\r\n    two: Zwei\r\n  hello: Bonjour\r\n", locale_file("fr.yml")
+  end
+
+  def test_files_with_a_bom_are_editable_and_keep_it
+    write_locale("fr.yml", "\uFEFFfr:\n  one: Un\n")
+    save("one", "fr", "Une")
+    assert_response :success
+    assert_equal "\uFEFFfr:\n  one: Une\n", locale_file("fr.yml")
+  end
+
+  def test_an_anchored_value_keeps_its_anchor
+    write_locale("fr.yml", "fr:\n  one: &one Un\n  two: Deux\n")
+    save("one", "fr", "Une")
+    assert_response :success
+    assert_includes locale_file("fr.yml"), "one: &one Une"
+  end
+
+  def test_an_aliased_value_is_refused
+    write_locale("fr.yml", "fr:\n  one: &one Un\n  copy: *one\n")
+    save("one", "fr", "Une")
+    assert_response :unprocessable_entity
+    assert_includes locale_file("fr.yml"), "one: &one Un\n"
+  end
+
   private
 
   def assert_no_file_error

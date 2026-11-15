@@ -39,6 +39,11 @@ class LocaleFile
     out
   end
 
+  # Lines without the BOM and the \r of CRLF; written back as they were.
+  def self.lines_of(content)
+    content.delete_prefix("\uFEFF").split("\n", -1).map { |l| l.delete_suffix("\r") }
+  end
+
   def self.parse(content)
     YAML.safe_load(readable(content), permitted_classes: [Symbol], aliases: true)
   end
@@ -46,7 +51,7 @@ class LocaleFile
   # Spinel's Psych can't build a Date, a Time or a Ruby object, even when
   # permitted: dates are read as text, and a !ruby/... node as "[object: X]".
   def self.readable(content)
-    lines = content.split("\n", -1)
+    lines = LocaleFile.lines_of(content)
     out = []
     skip_deeper = -1
     in_block = false
@@ -90,11 +95,13 @@ class LocaleFile
     raise ArgumentError, "#{key} not found in #{@path}" unless target
     raise ArgumentError, "#{key} can't be edited here" unless target.editable
 
-    lines = File.read(@path).split("\n", -1)
+    raw = File.read(@path)
+    lines = LocaleFile.lines_of(raw)
     head = lines[target.line - 1].match(KEY_LINE)
-    replacement = scalar_lines("#{head[1]}#{head[2]}:", head[1].length, value, target.style)
+    anchor = head[3].to_s[/\A&\S+ /].to_s
+    replacement = scalar_lines("#{head[1]}#{head[2]}: #{anchor}".rstrip, head[1].length, value, target.style)
     content = (lines[0, target.line - 1] + replacement + lines[target.last_line..]).join("\n")
-    write_checked(content, key, value)
+    write_checked(as_written(content, raw), key, value)
   end
 
   # Adds a key that isn't there, under its deepest existing parent, indented
@@ -103,7 +110,8 @@ class LocaleFile
     raise ArgumentError, @error unless @error.empty?
     raise ArgumentError, "#{key} already exists in #{@path}" if entry(key)
 
-    lines = File.read(@path).split("\n", -1)
+    raw = File.read(@path)
+    lines = LocaleFile.lines_of(raw)
     positions = scan(lines)
     parts = key.split(".")
     depth = parts.size - 1
@@ -130,10 +138,15 @@ class LocaleFile
     added += scalar_lines("#{' ' * leaf_indent}#{yaml_key(parts.last)}:", leaf_indent, value, "plain")
     content = (lines[0, at] + added + lines[at..]).join("\n")
     content += "\n" unless content.end_with?("\n")
-    write_checked(content, key, value)
+    write_checked(as_written(content, raw), key, value)
   end
 
   private
+
+  def as_written(content, raw)
+    out = raw.include?("\r\n") ? content.gsub("\n", "\r\n") : content
+    raw.start_with?("\uFEFF") ? "\uFEFF#{out}" : out
+  end
 
   def write_checked(content, key, value)
     expected = {}
@@ -189,7 +202,7 @@ class LocaleFile
       @error = e.message
       return
     end
-    lines = content.split("\n", -1)
+    lines = LocaleFile.lines_of(content)
     positions = scan(lines)
     values.each do |key, value|
       pos = positions[key]
