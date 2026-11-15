@@ -1,0 +1,42 @@
+<header>
+  <h1>Localito</h1>
+  <p class="root"><%= @translations.root %> · <%= @translations.names.size %> keys · <%= @translations.locales.join(", ") %></p>
+</header>
+
+<% @translations.broken_files.each do |file| %>
+  <p class="error"><%= @translations.relative(file.path) %>: <%= file.error %></p>
+<% end %>
+
+<form action="<%= root_path %>" method="get" class="search">
+  <input type="search" name="q" value="<%= @query %>" placeholder="Key or text" autofocus>
+  <label><input type="checkbox" name="missing" value="1" <%= @missing ? "checked" : "" %>> Missing only</label>
+  <button>Search</button>
+</form>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <% @translations.locales.each do |locale| %>
+        <th><%= locale %></th>
+      <% end %>
+    </tr>
+  </thead>
+  <tbody>
+    <% @names.each do |name| %>
+      <tr>
+        <td class="key"><%= name %></td>
+        <% @translations.locales.each do |locale| %>
+          <% entry = @translations.cell(name, locale) %>
+          <% if entry.nil? %>
+            <td class="missing">missing</td>
+          <% elsif entry.editable %>
+            <td><%= link_to entry.value, edit_translation_path(name: name, locale: locale, q: @query) %></td>
+          <% else %>
+            <td class="readonly" title="Not editable here"><%= entry.value %></td>
+          <% end %>
+        <% end %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

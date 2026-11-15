@@ -1,0 +1,4 @@
+en:
+  devise:
+    failure:
+      locked: "Your account is locked."

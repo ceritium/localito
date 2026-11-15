@@ -1,0 +1,24 @@
+# Main strings
+en:
+  hello: "Hello"
+  greeting: Hello, %{name}
+  quoted: 'It''s here'
+  posts:
+    index:
+      title: Posts # inline comment
+      empty: "No posts yet"
+    count:
+      one: One post
+      other: "%{count} posts"
+  intro: |
+    First line.
+    Second line.
+  folded: >-
+    A folded
+    paragraph.
+  date:
+    day_names:
+    - Sunday
+    - Monday
+  enabled: true
+  only_en: Only in English

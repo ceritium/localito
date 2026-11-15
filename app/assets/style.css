@@ -1,3 +1,16 @@
-body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+body { font-family: system-ui, sans-serif; margin: 1.5rem; color: #1f2937; }
+h1 { margin: 0 0 .25rem; font-size: 1.4rem; }
+.root { color: #6b7280; font-size: .85rem; margin: 0 0 1rem; word-break: break-all; }
 .notice { color: #166534; }
 .alert, .error { color: #b91c1c; }
+.search { display: flex; gap: .75rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.search input[type=search] { flex: 1; min-width: 12rem; padding: .4rem .6rem; font: inherit; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { border-bottom: 1px solid #e5e7eb; padding: .35rem .5rem; text-align: left; vertical-align: top; }
+th { position: sticky; top: 0; background: #f9fafb; }
+td.key { font-family: ui-monospace, monospace; font-size: .8rem; color: #374151; white-space: nowrap; }
+td a { color: inherit; text-decoration: none; display: block; white-space: pre-wrap; }
+td a:hover { background: #eff6ff; }
+td.missing { background: #fef2f2; color: #b91c1c; font-style: italic; }
+td.readonly { color: #6b7280; }
+textarea { width: 100%; max-width: 50rem; font: inherit; padding: .5rem; display: block; margin-bottom: .5rem; }

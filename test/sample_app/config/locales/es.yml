@@ -1,0 +1,22 @@
+es:
+  hello: "Hola"
+  greeting: Hola, %{name}
+  quoted: 'Está aquí'
+  posts:
+    index:
+      title: Entradas
+      empty: "Aún no hay entradas"
+    count:
+      one: Una entrada
+      other: "%{count} entradas"
+  intro: |
+    Primera línea.
+    Segunda línea.
+  folded: >-
+    Un párrafo
+    plegado.
+  date:
+    day_names: [domingo, lunes]
+  enabled: true
+  next_line:
+    "Valor en la línea siguiente"
