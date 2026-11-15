@@ -10,10 +10,9 @@ en:
     count:
       one: One post
       other: "%{count} posts"
-  intro: |-
+  intro: |
     First line.
     Second line.
-    third Line
   folded: >-
     A folded
     paragraph.
@@ -23,4 +22,3 @@ en:
     - Monday
   enabled: true
   only_en: Only in English
-  next_line: next line
