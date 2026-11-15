@@ -3,8 +3,8 @@
   <p class="root"><%= @translations.root %> · <%= @translations.names.size %> keys · <%= @translations.locales.join(", ") %></p>
 </header>
 
-<% @translations.broken_files.each do |file| %>
-  <p class="error"><%= @translations.relative(file.path) %>: <%= file.error %></p>
+<% @translations.errors.each do |error| %>
+  <p class="error"><%= error %></p>
 <% end %>
 
 <form action="<%= root_path %>" method="get" class="search">
@@ -12,6 +12,10 @@
   <label><input type="checkbox" name="missing" value="1" <%= @missing ? "checked" : "" %>> Missing only</label>
   <button>Search</button>
 </form>
+
+<% if @total > @names.size %>
+  <p class="root">Showing <%= @names.size %> of <%= @total %>; narrow the search to see the rest.</p>
+<% end %>
 
 <table>
   <thead>

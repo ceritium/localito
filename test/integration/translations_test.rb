@@ -92,6 +92,32 @@ class TranslationsTest < Spinrail::IntegrationTest
     assert_equal before, locale_file("es.yml")
   end
 
+  def test_picks_up_files_changed_on_disk
+    get "/?q=posts.index.title"
+    assert_includes response.body, "Entradas"
+    File.write(File.join(@app_root, "config/locales/es.yml"), locale_file("es.yml").sub("title: Entradas", "title: Artículos"))
+    get "/?q=posts.index.title"
+    assert_includes response.body, "Artículos"
+  end
+
+  def test_config_orders_locales_and_sets_paths
+    FileUtils.mkdir_p(File.join(@app_root, "other"))
+    File.write(File.join(@app_root, "other/fr.yml"), "fr:\n  hello: Bonjour\n")
+    File.write(File.join(@app_root, ".localito.yml"), "paths:\n  - config/locales/*.yml\n  - other/*.yml\nlocales: [fr, es]\n")
+    get "/"
+    assert_includes response.body, "Bonjour"
+    refute_includes response.body, "devise.failure.locked"
+    headers = response.body.scan(%r{<th>(\w+)</th>}).flatten
+    assert_equal %w[Key fr es en], headers
+  end
+
+  def test_broken_config_is_reported
+    File.write(File.join(@app_root, ".localito.yml"), "paths: [unclosed\n")
+    get "/"
+    assert_response :success
+    assert_includes response.body, ".localito.yml:"
+  end
+
   private
 
   def locale_file(name)

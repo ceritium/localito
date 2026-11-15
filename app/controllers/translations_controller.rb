@@ -1,13 +1,17 @@
 class TranslationsController < ApplicationController
+  LIMIT = 500
+
   def index
-    @translations = Translations.new(root)
+    @translations = Translations.load(root)
     @query = params[:q].to_s
     @missing = params[:missing].to_s == "1"
-    @names = @translations.search(@query, @missing)
+    found = @translations.search(@query, @missing)
+    @total = found.size
+    @names = found.first(LIMIT)
   end
 
   def edit
-    @translations = Translations.new(root)
+    @translations = Translations.load(root)
     @name = params[:name].to_s
     @locale = params[:locale].to_s
     @entry = @translations.cell(@name, @locale)
@@ -20,7 +24,7 @@ class TranslationsController < ApplicationController
   end
 
   def update
-    @translations = Translations.new(root)
+    @translations = Translations.load(root)
     @name = params[:name].to_s
     @locale = params[:locale].to_s
     @entry = @translations.cell(@name, @locale)
