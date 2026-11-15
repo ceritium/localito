@@ -23,7 +23,10 @@ USAGE
 }
 
 command="serve"
-if [ "${1:-}" = "init" ]; then command="init"; shift; fi
+case "${1:-}" in
+  init) command="init"; shift ;;
+  help) usage; exit 0 ;;
+esac
 
 root="."
 config=""
@@ -45,7 +48,8 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-root=$(cd "$root" 2>/dev/null && pwd) || { echo "localito: no such directory: $root" >&2; exit 1; }
+given="$root"
+root=$(cd "$root" 2>/dev/null && pwd) || { echo "localito: no such directory: $given" >&2; exit 1; }
 if [ -n "$config" ]; then
   config=$(cd "$(dirname "$config")" 2>/dev/null && echo "$(pwd)/$(basename "$config")") \
     || { echo "localito: no such directory for $config" >&2; exit 1; }
