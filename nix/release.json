@@ -1,0 +1,8 @@
+{
+  "version": "0.2.0",
+  "sha256": {
+    "linux-arm64": "16882d97d4dae4fb1918769b7ccb2679c143ddd7cc2631a2c61d5d63827e924b",
+    "linux-x86_64": "3977afc8750c99c5785dfbc0bfc229be9eec8fece6f444bc00c45970ebec8dd9",
+    "macos-arm64": "de7a61bb80c3843bfc2127d65092ce72fe3ec0f2da777487414a1eb9078010ce"
+  }
+}

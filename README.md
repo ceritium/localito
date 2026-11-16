@@ -12,16 +12,17 @@ made in your editor show up live.
 
 ## Install
 
-Download the archive for your platform from the
-[releases](https://github.com/ceritium/localito/releases) and put its `bin/`
-on your `PATH`:
-
 ```sh
-tar -xzf localito-v0.1.0-macos-arm64.tar.gz -C ~/.local/opt
-ln -s ~/.local/opt/localito-v0.1.0-macos-arm64/bin/localito ~/.local/bin/localito
+brew install ceritium/tap/localito                 # Homebrew, macOS or Linux
+nix profile install github:ceritium/localito      # Nix; or nix run github:ceritium/localito -- DIR
+curl -fsSL https://raw.githubusercontent.com/ceritium/localito/master/install.sh | sh
 ```
 
-The macOS build needs OpenSSL from Homebrew (`brew install openssl@3`).
+The script installs the latest [release](https://github.com/ceritium/localito/releases)
+into `~/.local` after checking its checksum; `LOCALITO_VERSION=v0.2.0` picks
+another one and `LOCALITO_PREFIX` another place. Builds: macOS on Apple
+silicon, Linux on x86_64 and arm64. Outside Homebrew and Nix, the macOS build
+needs OpenSSL from Homebrew (`brew install openssl@3`).
 
 From a checkout instead, `bin/localito` builds the binary on first use.
 
@@ -129,3 +130,5 @@ Tests start the binary against a copy of `test/sample_app`.
 
 `bin/package VERSION` builds and writes
 `dist/localito-VERSION-<os>-<arch>.tar.gz`, the archive a release carries.
+Pushing a `v*` tag builds every platform in CI, publishes the release and
+points the Homebrew tap (`ceritium/homebrew-tap`) and `nix/release.json` at it.

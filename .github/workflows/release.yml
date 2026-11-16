@@ -67,3 +67,43 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+
+  # Points the Homebrew tap and the Nix flake at the new release.
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$GITHUB_REF_NAME" --pattern SHA256SUMS --dir dist
+      - name: Homebrew tap
+        env:
+          DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: |
+          [ -n "$DEPLOY_KEY" ] || { echo "::error::set the HOMEBREW_TAP_DEPLOY_KEY secret"; exit 1; }
+          key="$RUNNER_TEMP/tap_key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          git clone --depth 1 git@github.com:ceritium/homebrew-tap.git "$RUNNER_TEMP/tap"
+          bin/release-meta "$GITHUB_REF_NAME" dist/SHA256SUMS formula > "$RUNNER_TEMP/tap/Formula/localito.rb"
+          cd "$RUNNER_TEMP/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "localito ${GITHUB_REF_NAME#v}"
+          git push origin HEAD:main
+      - uses: cachix/install-nix-action@v31
+      - name: Nix flake
+        run: |
+          bin/release-meta "$GITHUB_REF_NAME" dist/SHA256SUMS nix > nix/release.json
+          nix build .#default -L
+          ./result/bin/localito --help
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Nix: localito ${GITHUB_REF_NAME#v}" nix/release.json
+          git push origin HEAD:master
