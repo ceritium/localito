@@ -19,6 +19,13 @@
     });
   }
 
+  // Files sidebar: collapsed or not, remembered across pages.
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-files-toggle]")) return;
+    const hidden = document.documentElement.classList.toggle("files-collapsed");
+    try { localStorage.setItem("localito.files", hidden ? "hidden" : "shown"); } catch {}
+  });
+
   // Locales menu: typing hides the locales that don't match.
   for (const input of document.querySelectorAll("[data-filter-labels]")) {
     const labels = [...input.parentElement.querySelectorAll("label")];

@@ -68,7 +68,11 @@ header.top nav a { text-decoration: none; }
 
 .layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 1rem; align-items: start; }
 .files { position: sticky; top: 3.5rem; max-height: calc(100vh - 4.5rem); overflow: auto; }
-.files summary { font-weight: 600; cursor: pointer; margin-bottom: .35rem; }
+.files-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .35rem; }
+.files-toggle { padding: 0 .45rem; line-height: 1.4; }
+.files-collapsed .layout { grid-template-columns: 2rem minmax(0, 1fr); }
+.files-collapsed .files nav, .files-collapsed .files-head strong { display: none; }
+.files-collapsed .files-toggle { transform: rotate(180deg); }
 .files nav { display: grid; }
 .file-row { display: flex; justify-content: space-between; gap: .5rem; padding: .2rem .4rem; border-radius: 5px; color: inherit; text-decoration: none; font-size: .82rem; }
 .file-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, monospace; font-size: .78rem; }
@@ -136,6 +140,8 @@ table.grid { border-collapse: separate; border-spacing: 0; width: 100%; }
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .files { position: static; max-height: 40vh; }
+  .files-collapsed .layout { grid-template-columns: minmax(0, 1fr); }
+  .files-collapsed .files-head strong { display: inline; }
 }
 @media (max-width: 640px) {
   body { padding: .75rem 1rem 2rem; }
