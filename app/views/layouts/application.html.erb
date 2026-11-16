@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <%= csrf_meta_tags %>
   <title><%= content_for?(:title) ? yield(:title) : "Localito" %></title>
+  <%= favicon_link_tag "favicon.svg" %>
   <%= stylesheet_link_tag "style" %>
   <script>try { if (localStorage.getItem("localito.files") === "hidden") document.documentElement.classList.add("files-collapsed"); } catch (e) {}</script>
   <%= javascript_include_tag "live", defer: true %>

@@ -102,6 +102,15 @@ class BrowseTest < Spinrail::IntegrationTest
     assert_match %r{<script src="/live-\w+\.js" defer}, response.body
   end
 
+  def test_favicon
+    get "/"
+    href = response.body[%r{<link rel="icon" type="image/svg\+xml" href="(/favicon-\h{12}\.svg)">}, 1]
+    assert href, response.body
+    get href
+    assert_response :success
+    assert_includes response.body, "<svg"
+  end
+
   def test_filter_select_and_clear
     get "/"
     refute_includes response.body, %(value="missing:es")
