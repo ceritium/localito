@@ -1,0 +1,69 @@
+name: Release
+
+# A v* tag builds every platform and publishes the release; a manual run
+# only builds, to try the matrix.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+          - os: ubuntu-22.04
+          - os: ubuntu-22.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      SPINRAIL_VENDOR: ${{ github.workspace }}/.toolchain
+    steps:
+      - uses: actions/checkout@v4
+      - name: System packages
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y build-essential pkg-config libsqlite3-dev libssl-dev libyaml-dev
+          else
+            brew install openssl@3 pkgconf
+          fi
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0.0"
+          bundler-cache: true
+      # spinel and tep take minutes to build; they only change with spinrail.
+      - uses: actions/cache@v4
+        with:
+          path: .toolchain
+          key: toolchain-${{ matrix.os }}-${{ hashFiles('Gemfile.lock') }}
+      - run: bin/spinrail test
+      - id: package
+        run: echo "file=$(bin/package "${GITHUB_REF_NAME}" | tail -n 1)" >> "$GITHUB_OUTPUT"
+      - run: tar -tzf "${{ steps.package.outputs.file }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: ${{ steps.package.outputs.file }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - run: (cd dist && shasum -a 256 *.tar.gz > SHA256SUMS)
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
