@@ -4,6 +4,8 @@ Browse and edit a Rails app's i18n YAML files in the browser: every key side by
 side across locales, what's missing, what changed since a git ref, and inline
 editing that rewrites only the lines of the value you changed.
 
+![Localito: keys across en, es and fr, with missing values, a placeholder mismatch and the files sidebar](docs/screenshot.png)
+
 Localito is a [spinrail](https://github.com/ceritium/spinrail) app: it compiles
 to a single native binary and reads the locale files on every request, so edits
 made in your editor show up live.
