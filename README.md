@@ -98,8 +98,8 @@ new_keys: "config/locales/%{locale}.yml"
   locale. Both are filters and are flagged on the cell.
 - **Changes** against a git ref (any branch or commit), per value.
 - **Live**: the page refreshes when a file changes on disk.
-- **Export** the current list as CSV (one column per locale) or XLIFF 1.2
-  (reference locale to one target).
+- **Export** the keys matching the current search, filter and file, as CSV
+  (one column per shown locale) or XLIFF 1.2 from one locale to another.
 - **Import** a CSV or XLIFF back: a preview shows what is new, changed or
   can't be written, and only the checked values are written. A value changed
   since the preview is not overwritten. Empty values are skipped.

@@ -25,6 +25,18 @@ class ExchangeTest < Spinrail::IntegrationTest
     refute_includes response.body, "next_line"
     get "/export?format=xliff&target=en"
     assert_response :unprocessable_entity
+    get "/export?format=xliff&source=es&target=en&q=next_line"
+    assert_includes response.body, %(source-language="es" target-language="en")
+    assert_includes response.body, "<source>Valor en la línea siguiente</source>"
+  end
+
+  def test_export_menu_carries_the_current_filters
+    get "/?q=posts&filter=missing:es&file=config/locales/*.yml"
+    form = response.body[%r{<form action="/export".*?</form>}m]
+    assert_includes form, %(name="q" value="posts")
+    assert_includes form, %(name="filter" value="missing:es")
+    assert_includes form, %(name="file" value="config/locales/*.yml")
+    assert_includes form, %(<option value="es" selected>es</option>)
   end
 
   def test_csv_import_previews_then_writes

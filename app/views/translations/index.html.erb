@@ -6,8 +6,8 @@
   <select name="filter" aria-label="Filter" data-combo>
     <option value="">All keys</option>
     <option value="missing" <%= @filter == "missing" ? "selected" : "" %>>Missing in any locale</option>
-    <% @translations.locales.each do |locale| %>
-      <option value="missing:<%= locale %>" <%= @filter == "missing:#{locale}" ? "selected" : "" %>>Missing in <%= locale %></option>
+    <% if @filter.start_with?("missing:") %>
+      <option value="<%= @filter %>" selected>Missing in <%= @filter.delete_prefix("missing:") %></option>
     <% end %>
     <option value="empty" <%= @filter == "empty" ? "selected" : "" %>>Empty values</option>
     <option value="interpolation" <%= @filter == "interpolation" ? "selected" : "" %>>Placeholders differ from <%= @translations.reference %></option>
@@ -42,6 +42,9 @@
     </select>
   <% end %>
   <button>Search</button>
+  <% unless @query.empty? && @filter.empty? && @scope.empty? %>
+    <a class="button" href="<%= root_path %>" title="Clear the search, filter and file">Clear</a>
+  <% end %>
 </form>
 
 <div id="live" data-version="<%= @version %>">
@@ -84,14 +87,33 @@
           <%= @total %> <%= @total == 1 ? "key" : "keys" %><% unless @scope.empty? %> in <strong><%= @scope %></strong> (<%= link_to "all files", root_path(q: @query, filter: @filter) %>)<% end %><% if @total > @names.size %>, showing the first <%= @names.size %>; narrow the search to see the rest<% end %>.
           Click a value to edit it; <kbd>n</kbd>/<kbd>p</kbd> jump to the next or previous missing one.
         </span>
-        <span class="export">
-          Export:
-          <%= link_to "CSV", export_path(q: @query, filter: @filter, file: @scope, format: "csv") %>
-          <% @visible.each do |locale| %>
-            <% next if locale == @translations.reference %>
-            · <%= link_to "XLIFF #{@translations.reference}→#{locale}", export_path(q: @query, filter: @filter, file: @scope, format: "xliff", target: locale) %>
-          <% end %>
-        </span>
+        <details class="export-menu">
+          <summary>Export</summary>
+          <form action="<%= export_path %>" method="get" class="menu export-form">
+            <input type="hidden" name="q" value="<%= @query %>">
+            <input type="hidden" name="filter" value="<%= @filter %>">
+            <input type="hidden" name="file" value="<%= @scope %>">
+            <div class="segmented" role="radiogroup" aria-label="Format">
+              <label><input type="radio" name="format" value="csv" checked><span>CSV</span></label>
+              <label><input type="radio" name="format" value="xliff"><span>XLIFF</span></label>
+            </div>
+            <p class="muted csv-only">One column per shown locale (<%= @visible.join(", ") %>).</p>
+            <div class="xliff-only">
+              <label>From <select name="source" aria-label="Source locale">
+                <% @translations.locales.each do |locale| %>
+                  <option value="<%= locale %>" <%= locale == @translations.reference ? "selected" : "" %>><%= locale %></option>
+                <% end %>
+              </select></label>
+              <label>to <select name="target" aria-label="Target locale">
+                <% @translations.locales.each do |locale| %>
+                  <option value="<%= locale %>" <%= locale == @export_target ? "selected" : "" %>><%= locale %></option>
+                <% end %>
+              </select></label>
+            </div>
+            <p class="muted"><%= @total %> <%= @total == 1 ? "key" : "keys" %>: the current search, filter and file.</p>
+            <button class="primary">Download</button>
+          </form>
+        </details>
       </div>
 
       <% if @layout == "table" %>

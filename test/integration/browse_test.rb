@@ -101,4 +101,13 @@ class BrowseTest < Spinrail::IntegrationTest
     assert_includes response.body, 'id="live"'
     assert_match %r{<script src="/live-\w+\.js" defer}, response.body
   end
+
+  def test_filter_select_and_clear
+    get "/"
+    refute_includes response.body, %(value="missing:es")
+    refute_includes response.body, ">Clear</a>"
+    get "/?q=posts&filter=missing:es"
+    assert_includes response.body, %(<option value="missing:es" selected>Missing in es</option>)
+    assert_includes response.body, ">Clear</a>"
+  end
 end

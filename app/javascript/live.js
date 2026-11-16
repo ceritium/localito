@@ -279,7 +279,19 @@
     if (!next || !current) return;
     version = next.dataset.version;
     const before = new Map([...current.querySelectorAll("[data-cell]")].map((el) => [el.dataset.cell, el.textContent]));
+    const menu = current.querySelector(".export-menu[open]");
+    const choices = menu && new FormData(menu.querySelector("form"));
     current.innerHTML = next.innerHTML;
+    if (menu) {
+      const fresh = current.querySelector(".export-menu");
+      fresh.open = true;
+      for (const name of ["format", "source", "target"]) {
+        for (const el of fresh.querySelectorAll(`[name="${name}"]`)) {
+          if (el.type === "radio") el.checked = el.value === choices.get(name);
+          else el.value = choices.get(name);
+        }
+      }
+    }
     for (const el of current.querySelectorAll("[data-cell]")) {
       if (before.has(el.dataset.cell) && before.get(el.dataset.cell) !== el.textContent) el.classList.add("flash");
     }

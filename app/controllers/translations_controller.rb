@@ -9,16 +9,20 @@ class TranslationsController < ApplicationController
     @names = found.first(LIMIT)
     @stats = @translations.stats
     @tree = @translations.tree(@visible)
+    ref = @translations.reference
+    missing_in = @filter.start_with?("missing:") ? @filter.delete_prefix("missing:") : ""
+    others = (@visible + @translations.locales).reject { |l| l == ref }
+    @export_target = missing_in.empty? || missing_in == ref ? others.first.to_s : missing_in
   end
 
   # The keys the list shows (search, filter, file), all of them.
   def export
     names = @translations.search(@query, @filter, @visible, @scope)
     if params[:format].to_s == "xliff"
-      source = @translations.reference
+      source = params[:source].to_s.empty? ? @translations.reference : params[:source].to_s
       target = params[:target].to_s
-      unless @translations.locales.include?(target) && target != source
-        render plain: "Pick a target locale other than #{source}", status: :unprocessable_entity
+      unless @translations.locales.include?(source) && @translations.locales.include?(target) && target != source
+        render plain: "Pick two different locales", status: :unprocessable_entity
         return
       end
       send_data Exchange.xliff(@translations, names, source, target), type: "application/x-xliff+xml",
