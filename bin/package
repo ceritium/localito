@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# bin/package VERSION: builds and writes dist/localito-VERSION-<os>-<arch>.tar.gz
+set -euo pipefail
+version="${1:?usage: bin/package VERSION}"
+cd "$(dirname "$0")/.."
+os=$(uname -s | tr '[:upper:]' '[:lower:]'); [ "$os" = darwin ] && os=macos
+arch=$(uname -m); [ "$arch" = aarch64 ] && arch=arm64
+name="localito-$version-$os-$arch"
+
+bin/spinrail build
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+mkdir -p "$stage/$name/bin" "$stage/$name/libexec"
+cp bin/localito "$stage/$name/bin/localito"
+cp localito "$stage/$name/libexec/localito-server"
+cp README.md "$stage/$name/"
+mkdir -p dist
+tar -czf "dist/$name.tar.gz" -C "$stage" "$name"
+echo "dist/$name.tar.gz"

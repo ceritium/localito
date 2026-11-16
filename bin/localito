@@ -5,6 +5,14 @@ set -euo pipefail
 
 self=$(readlink -f "$0" 2>/dev/null || echo "$0")
 app=$(cd "$(dirname "$self")/.." && pwd)
+# A release has the server in libexec/; a checkout builds it in place.
+if [ -x "$app/libexec/localito-server" ]; then
+  server="$app/libexec/localito-server"
+  logdir="${XDG_STATE_HOME:-$HOME/.local/state}/localito"
+else
+  server="$app/localito"
+  logdir="$app/log"
+fi
 
 usage() {
   cat <<'USAGE'
@@ -18,7 +26,8 @@ Options:
       --no-open       don't open the browser
   -h, --help          this help
 
-The server log goes to log/localito.log in the localito checkout.
+The server log goes to localito.log in ~/.local/state/localito (log/ in a
+checkout).
 USAGE
 }
 
@@ -99,19 +108,19 @@ if [ -n "$config" ] && [ ! -f "$config" ]; then
 fi
 
 while nc -z localhost "$port" 2>/dev/null; do port=$((port + 1)); done
-[ -x "$app/localito" ] || (cd "$app" && bin/spinrail build)
-mkdir -p "$app/log"
-log="$app/log/localito.log"
+[ -x "$server" ] || (cd "$app" && bin/spinrail build)
+mkdir -p "$logdir"
+log="$logdir/localito.log"
 
 echo "localito: $root on http://localhost:$port (Ctrl+C to stop)"
 [ -n "$config" ] && echo "localito: config $config"
-if [ $open_browser -eq 1 ] && command -v open >/dev/null; then
-  (sleep 1 && open "http://localhost:$port") &
+if [ $open_browser -eq 1 ]; then
+  opener=$(command -v open || command -v xdg-open || true)
+  [ -n "$opener" ] && (sleep 1 && "$opener" "http://localhost:$port" >/dev/null 2>&1) &
 fi
 
-# Runs from the checkout: the binary writes db/, log/ and tmp/ where it starts.
 set +e
-(cd "$app" && LOCALITO_ROOT="$root" LOCALITO_CONFIG="$config" ./localito -p "$port" >> "$log" 2>&1)
+(cd "$logdir" && LOCALITO_ROOT="$root" LOCALITO_CONFIG="$config" "$server" -p "$port" >> "$log" 2>&1)
 code=$?
 set -e
 if [ $code -ne 0 ] && [ $code -ne 130 ]; then

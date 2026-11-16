@@ -8,12 +8,26 @@ Localito is a [spinrail](https://github.com/ceritium/spinrail) app: it compiles
 to a single native binary and reads the locale files on every request, so edits
 made in your editor show up live.
 
+## Install
+
+Download the archive for your platform from the
+[releases](https://github.com/ceritium/localito/releases) and put its `bin/`
+on your `PATH`:
+
+```sh
+tar -xzf localito-v0.1.0-macos-arm64.tar.gz -C ~/.local/opt
+ln -s ~/.local/opt/localito-v0.1.0-macos-arm64/bin/localito ~/.local/bin/localito
+```
+
+The macOS build needs OpenSSL from Homebrew (`brew install openssl@3`).
+
+From a checkout instead, `bin/localito` builds the binary on first use.
+
 ## Usage
 
 ```sh
-bin/spinrail build                 # once, in this checkout
-bin/localito ~/code/my-app         # opens http://localhost:3900
-bin/localito init ~/code/my-app    # writes ~/code/my-app/.localito.yml
+localito ~/code/my-app         # opens http://localhost:3900
+localito init ~/code/my-app    # writes ~/code/my-app/.localito.yml
 ```
 
 ```
@@ -26,7 +40,8 @@ localito init [DIR] [options]   write DIR/.localito.yml with every setting
 ```
 
 The first free port from 3900 up is used, so several apps can be open at once.
-The server log goes to `log/localito.log` in this checkout.
+The server log goes to `~/.local/state/localito/localito.log`, or to
+`log/localito.log` when run from a checkout.
 
 ## Configuration
 
@@ -109,3 +124,6 @@ bin/spinrail test
 ```
 
 Tests start the binary against a copy of `test/sample_app`.
+
+`bin/package VERSION` builds and writes
+`dist/localito-VERSION-<os>-<arch>.tar.gz`, the archive a release carries.
