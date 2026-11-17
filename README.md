@@ -14,7 +14,7 @@ made in your editor show up live.
 
 ```sh
 brew install ceritium/tap/localito                 # Homebrew, macOS or Linux
-nix profile install github:ceritium/localito      # Nix; or nix run github:ceritium/localito -- DIR
+nix profile install github:ceritium/localito      # Nix; or nix run github:ceritium/localito -- web DIR
 curl -fsSL https://raw.githubusercontent.com/ceritium/localito/master/install.sh | sh
 ```
 
@@ -24,25 +24,28 @@ another one and `LOCALITO_PREFIX` another place. Builds: macOS on Apple
 silicon, Linux on x86_64 and arm64. Outside Homebrew and Nix, the macOS build
 needs OpenSSL from Homebrew (`brew install openssl@3`).
 
-From a checkout instead, `bin/localito` builds the binary on first use.
+From a checkout instead, `bin/localito web` builds the binary on first use.
 
 ## Usage
 
 ```sh
-localito ~/code/my-app         # opens http://localhost:3900
+localito web ~/code/my-app     # opens http://localhost:3900
 localito init ~/code/my-app    # writes ~/code/my-app/.localito.yml
 localito grep -k posts my-app  # searches the locale files in the terminal
 ```
 
 ```
-localito [DIR] [options]        browse and edit DIR's locale files (default: .)
+localito web [DIR] [options]    browse and edit DIR's locale files (default: .)
 localito init [DIR] [options]   write DIR/.localito.yml with every setting
 localito grep [DIR] [options]   search the locale files from the terminal
 
+web options:
   -c, --config PATH   config file (default: DIR/.localito.yml)
   -p, --port PORT     first port to try (default: $LOCALITO_PORT or 3900)
       --no-open       don't open the browser
 ```
+
+`localito` without a command prints the usage.
 
 The first free port from 3900 up is used, so several apps can be open at once.
 The server log goes to `~/.local/state/localito/localito.log`, or to

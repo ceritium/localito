@@ -1,6 +1,6 @@
 require "yaml"
 
-# <root>/.localito.yml, or the file in LOCALITO_CONFIG (localito -c PATH).
+# <root>/.localito.yml, or the file in LOCALITO_CONFIG (localito web -c PATH).
 # Every setting is optional; `localito init` writes them all with defaults.
 # No paths: Discovery finds the locale files.
 class LocalitoConfig

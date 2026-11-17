@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# localito [DIR] [-c CONFIG] [-p PORT] [--no-open]   browse and edit DIR's locale files
-# localito init [DIR] [-c CONFIG]                     write the default config
-# localito grep [DIR] [-k KEY] [-v VALUE]             search the locale files
+# localito web [DIR] [-c CONFIG] [-p PORT] [--no-open]   browse and edit DIR's locale files
+# localito init [DIR] [-c CONFIG]                        write the default config
+# localito grep [DIR] [-k KEY] [-v VALUE]                search the locale files
 set -euo pipefail
 
 self=$(readlink -f "$0" 2>/dev/null || echo "$0")
@@ -18,11 +18,11 @@ fi
 usage() {
   cat <<'USAGE'
 Usage:
-  localito [DIR] [options]        browse and edit DIR's locale files (default: .)
+  localito web [DIR] [options]    browse and edit DIR's locale files (default: .)
   localito init [DIR] [options]   write DIR/.localito.yml with every setting
   localito grep [DIR] [options]   search the locale files from the terminal
 
-Options:
+web options:
   -c, --config PATH   config file (default: DIR/.localito.yml)
   -p, --port PORT     first port to try (default: $LOCALITO_PORT or 3900)
       --no-open       don't open the browser
@@ -44,11 +44,15 @@ checkout).
 USAGE
 }
 
-command="serve"
+command=""
 case "${1:-}" in
+  web) command="web"; shift ;;
   init) command="init"; shift ;;
   grep) command="grep"; shift ;;
-  help) usage; exit 0 ;;
+  help|-h|--help) usage; exit 0 ;;
+  "") usage >&2; exit 2 ;;
+  -*) echo "localito: unknown option: $1" >&2; usage >&2; exit 2 ;;
+  *) echo "localito: unknown command: $1" >&2; usage >&2; exit 2 ;;
 esac
 
 root="."
