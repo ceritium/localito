@@ -10,6 +10,11 @@ class LocaleFile
   RUBY_TAG = %r{\A(\s*(?:- +|.*?: +))!ruby/(?!string\b|sym\b|symbol\b)[\w/]*:?([\w:]*)}
   OBJECT_VALUE = /\A\[object: [\w:]+\]\z/
 
+  # A JSON object member: indent, "key", ": " and the rest (value, comma,
+  # comment). The key part is kept verbatim; only the value is rewritten.
+  JSON_MEMBER = /\A( *)("(?:[^"\\]|\\.)*")( *: *)(.*)\z/
+  JSON_SCALAR = /\A(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?|true|false|null)/
+
   attr_reader :path, :entries, :error
 
   def initialize(path)
@@ -88,6 +93,10 @@ class LocaleFile
     @entries.find { |e| e.key == key }
   end
 
+  def json?
+    @path.end_with?(".json")
+  end
+
   # Raises if the rewritten file wouldn't load back with the new value and every
   # other value untouched; the file is only written after that check.
   def update(key, value)
@@ -97,11 +106,29 @@ class LocaleFile
 
     raw = File.read(@path)
     lines = LocaleFile.lines_of(raw)
+    content = json? ? json_update(lines, target, key, value) : yaml_update(lines, target, value)
+    write_checked(as_written(content, raw), key, value)
+  end
+
+  def yaml_update(lines, target, value)
     head = lines[target.line - 1].match(KEY_LINE)
     anchor = head[3].to_s[/\A&\S+ /].to_s
     replacement = scalar_lines("#{head[1]}#{head[2]}: #{anchor}".rstrip, head[1].length, value, target.style)
-    content = (lines[0, target.line - 1] + replacement + lines[target.last_line..]).join("\n")
-    write_checked(as_written(content, raw), key, value)
+    (lines[0, target.line - 1] + replacement + lines[target.last_line..]).join("\n")
+  end
+
+  # JSON: replace only the value token, keeping the trailing comma, comments
+  # and everything else on the line untouched.
+  def json_update(lines, target, key, value)
+    m = lines[target.line - 1].match(JSON_MEMBER)
+    pair = nil
+    pair = json_split_rest(m[4]) if m
+    token = pair && pair[0]
+    tail = pair && pair[1]
+    raise ArgumentError, "#{key} can't be edited here" unless m && token
+
+    replacement = "#{m[1]}#{m[2]}#{m[3]}#{json_quote(value)}#{tail}"
+    (lines[0, target.line - 1] + [replacement] + lines[target.last_line..]).join("\n")
   end
 
   # Adds a key that isn't there, under its deepest existing parent, indented
@@ -112,6 +139,12 @@ class LocaleFile
 
     raw = File.read(@path)
     lines = LocaleFile.lines_of(raw)
+    content = json? ? json_insert(lines, key, value) : yaml_insert(lines, key, value)
+    content += "\n" unless content.end_with?("\n")
+    write_checked(as_written(content, raw), key, value)
+  end
+
+  def yaml_insert(lines, key, value)
     positions = scan(lines)
     parts = key.split(".")
     depth = parts.size - 1
@@ -136,12 +169,218 @@ class LocaleFile
     end
     leaf_indent = indent + ((parts.size - 1 - depth) * step)
     added += scalar_lines("#{' ' * leaf_indent}#{yaml_key(parts.last)}:", leaf_indent, value, "plain")
-    content = (lines[0, at] + added + lines[at..]).join("\n")
-    content += "\n" unless content.end_with?("\n")
-    write_checked(as_written(content, raw), key, value)
+    (lines[0, at] + added + lines[at..]).join("\n")
   end
 
   private
+
+  # Splits a member's rest ("value, // comment") into the value token and
+  # what follows it; [nil, nil] when it isn't a JSON scalar token.
+  def json_split_rest(rest)
+    stripped = rest.to_s.lstrip
+    if stripped.start_with?('"')
+      i = 1
+      while i < stripped.length
+        c = stripped[i]
+        break if c == '"'
+
+        i += c == "\\" ? 2 : 1
+      end
+      return [nil, nil] if i >= stripped.length
+
+      return [stripped[0..i], stripped[(i + 1)..]]
+    end
+    m = stripped.match(JSON_SCALAR)
+    return [nil, nil] unless m
+
+    [m[0], stripped[m[0].length..]]
+  end
+
+  # A JSON string literal: double quotes, JSON escapes, raw UTF-8 kept.
+  def json_quote(value)
+    out = '"'.dup
+    value.each_char do |c|
+      if c == '"'
+        out << '\\"'
+      elsif c == "\\"
+        out << "\\\\"
+      elsif c == "\n"
+        out << "\\n"
+      elsif c == "\r"
+        out << "\\r"
+      elsif c == "\t"
+        out << "\\t"
+      elsif c.ord < 0x20
+        out << "\\u" << c.ord.to_s(16).rjust(4, "0")
+      else
+        out << c
+      end
+    end
+    out << '"'
+  end
+
+  # JSON: adds the missing chain under the deepest existing parent (or the
+  # root), before the object's closing brace, commas in place.
+  def json_insert(lines, key, value)
+    positions = scan(lines)
+    parts = key.split(".")
+    depth = parts.size - 1
+    depth -= 1 while depth.positive? && !positions.key?(parts[0, depth].join("."))
+
+    braces = nil
+    if depth.positive?
+      parent = parts[0, depth].join(".")
+      raise ArgumentError, "#{parent} has a value; #{key} can't go under it" if entry(parent)
+
+      braces = json_braces(lines, positions[parent][0] - 1)
+    else
+      open_line = lines.index { |l| l.include?("{") }
+      braces = open_line ? json_braces(lines, open_line) : [nil, nil, nil, nil]
+    end
+    open_line = braces[0]
+    open_char = braces[1]
+    close_line = braces[2]
+    close_char = braces[3]
+    return json_from_scratch(parts, value) unless open_line && close_line
+
+    remaining = parts[depth..-1]
+    if open_line == close_line
+      json_insert_inline(lines, open_line, open_char, close_char, remaining, value)
+      lines.join("\n")
+    else
+      indent = depth.positive? ? child_indent(positions, parts[0, depth].join(".")) : json_root_indent(positions)
+      json_insert_block(lines, open_line, close_line, indent, remaining, value).join("\n")
+    end
+  end
+
+  # The { on open_line and its matching }: [open line, open char, close line,
+  # close char]; [nil, ...] when the object isn't closed. Braces inside
+  # strings and comments don't count.
+  def json_braces(lines, open_line)
+    i = lines[open_line].index("{")
+    return [nil, nil, nil, nil] unless i
+
+    depth = 0
+    (open_line...lines.size).each do |n|
+      current = lines[n]
+      j = n == open_line ? i : 0
+      while j < current.length
+        c = current[j]
+        if c == '"'
+          j += 1
+          while j < current.length
+            break if current[j] == '"'
+
+            j += current[j] == "\\" ? 2 : 1
+          end
+        elsif c == "/" && current[j + 1] == "/"
+          break
+        elsif c == "/" && current[j + 1] == "*"
+          while j < current.length
+            if current[j] == "*" && current[j + 1] == "/"
+              j += 1
+              break
+            end
+            j += 1
+          end
+        elsif c == "{"
+          depth += 1
+        elsif c == "}"
+          depth -= 1
+          return [open_line, i, n, j] if depth.zero?
+        end
+        j += 1
+      end
+    end
+    [nil, nil, nil, nil]
+  end
+
+  # { "a": 1 } on one line: the entry joins the flow, comma before it.
+  def json_insert_inline(lines, line_no, open_char, close_char, parts, value)
+    line = lines[line_no]
+    inner = line[(open_char + 1)...close_char].rstrip
+    if parts.size > 1
+      key = Regexp.escape(json_quote(parts[0]))
+      raise ArgumentError, "#{parts[0]} already exists here" if inner.match?(/(?:\A|,)\s*#{key}\s*:/)
+    end
+    if inner.empty?
+      comma = ""
+    else
+      comma = ", "
+    end
+    lines[line_no] = line[0..open_char] + inner + comma + json_nested_value(parts, value) + " " + line[close_char..]
+    lines
+  end
+
+  # Multi-line object: the chain goes before the closing brace, indented like
+  # its siblings; the entry that becomes the previous one gains its comma.
+  def json_insert_block(lines, open_line, close_line, indent, parts, value)
+    step = 2
+    added = []
+    parts[0..-2].each_with_index do |part, i|
+      added << "#{' ' * (indent + (i * step))}#{json_quote(part)}: {"
+    end
+    added << "#{' ' * (indent + ((parts.size - 1) * step))}#{json_quote(parts.last)}: #{json_quote(value)}"
+    prev = json_previous_entry(lines, open_line, close_line)
+    lines[prev] = json_ensure_comma(lines[prev]) if prev
+    lines[0...close_line] + added + lines[close_line..]
+  end
+
+  # The entry line right before the closing brace, or nil when the object has
+  # no entries (blank lines between the { and the } don't count).
+  def json_previous_entry(lines, open_line, close_line)
+    prev = close_line - 1
+    prev -= 1 while prev > open_line && lines[prev].strip.empty?
+    prev > open_line ? prev : nil
+  end
+
+  # Appends the separating comma a JSON member needs once it stops being the
+  # last entry; the comma goes before a trailing comment.
+  def json_ensure_comma(line)
+    m = line.match(JSON_MEMBER)
+    unless m
+      stripped = line.rstrip
+      return line if stripped.end_with?(",")
+
+      return "#{line},"
+    end
+    pair = json_split_rest(m[4])
+    token = pair[0]
+    tail = pair[1]
+    return "#{line}," unless token
+    return line if tail.lstrip.start_with?(",")
+
+    "#{m[1]}#{m[2]}#{m[3]}#{token},#{tail}"
+  end
+
+  # "a": { "b": { "c": "v" } } for the parts that aren't in the file yet.
+  def json_nested_value(parts, value)
+    out = "".dup
+    parts[0..-2].each { |part| out << "#{json_quote(part)}: { " }
+    out << "#{json_quote(parts.last)}: #{json_quote(value)}"
+    out << (" }" * (parts.size - 1))
+    out
+  end
+
+  def json_root_indent(positions)
+    indents = []
+    positions.each { |k, pos| indents << pos[3] unless k.include?(".") }
+    indents.empty? ? 2 : indents.min
+  end
+
+  # A file without braces (an empty new one): the whole tree from the locale
+  # down, pretty-printed with two-space indentation.
+  def json_from_scratch(parts, value)
+    out = ["{"]
+    (0...(parts.size - 1)).each { |i| out << "#{' ' * (2 * (i + 1))}#{json_quote(parts[i])}: {" }
+    out << "#{' ' * (2 * parts.size)}#{json_quote(parts.last)}: #{json_quote(value)}"
+    (parts.size - 2).downto(0) do |i|
+      pad = " " * (2 * (i + 1))
+      out << pad + "}"
+    end
+    out << "}"
+    out.join("\n")
+  end
 
   def as_written(content, raw)
     out = raw.include?("\r\n") ? content.gsub("\n", "\r\n") : content
@@ -208,6 +447,12 @@ class LocaleFile
       pos = positions[key]
       editable = !pos.nil? && !complex.key?(key)
       editable = false if editable && value.match?(OBJECT_VALUE) && lines[pos[0] - 1].include?("!ruby/")
+      if editable && json?
+        m = lines[pos[0] - 1].match(JSON_MEMBER)
+        pair = nil
+        pair = json_split_rest(m[4]) if m
+        editable = !m.nil? && !pair.nil? && !pair[0].nil?
+      end
       @entries << LocaleEntry.new(@path, key, value, pos ? pos[0] : 0, pos ? pos[1] : 0,
                                   pos ? pos[2] : "", editable)
     end
@@ -247,7 +492,12 @@ class LocaleFile
       stack << [indent, unquote(m[2])]
       full = stack.map { |s| s[1] }.join(".")
       rest = m[3].to_s.sub(/\A&\S+/, "").strip
-      if rest.empty? || rest.start_with?("#")
+      if rest.empty? || rest.start_with?("#") || (json? && rest.start_with?("{", "["))
+        # An empty value owns no deeper content the way a block scalar does;
+        # children below keep their own lines. In JSON the same goes for flow
+        # openers ({, [), whose children are regular object members. YAML
+        # flow openers keep the old behavior: their lines stay unclaimed, so
+        # those keys remain read-only.
         positions[full] = [i + 1, i + 1, "plain", indent]
         bare_key = full
       else

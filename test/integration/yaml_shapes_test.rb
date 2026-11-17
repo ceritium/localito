@@ -106,6 +106,12 @@ class YamlShapesTest < Spinrail::IntegrationTest
     assert_includes locale_file("fr.yml"), "one: &one Un\n"
   end
 
+  def test_multiline_flow_mappings_are_read_only
+    write_locale("fr.yml", "fr:\n  meta: {\n    a: 1,\n    b: 2\n  }\n")
+    get "/key?name=meta.a"
+    assert_equal "0", cell_attrs("meta.a", "fr")["editable"]
+  end
+
   private
 
   def assert_no_file_error
