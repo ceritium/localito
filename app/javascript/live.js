@@ -26,6 +26,70 @@
     try { localStorage.setItem("localito.files", hidden ? "hidden" : "shown"); } catch {}
   });
 
+  // Files sidebar: collapsible folders and a filter (GitHub-PR-like). The
+  // collapse state and the filter query survive page reloads and refresh().
+  const FILES_COLLAPSED_KEY = "localito.collapsed";
+  let filesFilterQuery = "";
+
+  const collapsedPaths = () => {
+    try { return new Set(JSON.parse(localStorage.getItem(FILES_COLLAPSED_KEY)) || []); } catch { return new Set(); }
+  };
+  const saveCollapsedPaths = (set) => {
+    try { localStorage.setItem(FILES_COLLAPSED_KEY, JSON.stringify([...set])); } catch {}
+  };
+
+  function syncFilesSidebar(root) {
+    const nav = root.querySelector(".files nav");
+    const input = root.querySelector(".files-filter");
+    if (!nav || !input) return;
+    input.value = filesFilterQuery;
+    const q = filesFilterQuery.trim().toLowerCase();
+    nav.classList.toggle("filtering", q.length > 0);
+    for (const li of nav.querySelectorAll("li.file-node")) {
+      li.hidden = q.length > 0 && !li.dataset.path.toLowerCase().includes(q);
+    }
+    const collapsed = collapsedPaths();
+    for (const details of nav.querySelectorAll("li.file-folder > details")) {
+      const li = details.parentElement;
+      const visible = details.querySelectorAll("li.file-node:not([hidden])").length > 0;
+      li.hidden = q.length > 0 && !visible;
+      details.open = q.length > 0 ? visible : !collapsed.has(li.dataset.path);
+    }
+    // The scoped (active) row stays visible: expand its ancestors.
+    const active = nav.querySelector(".file-row.active");
+    let el = active && active.closest("li");
+    while (el) {
+      el = el.parentElement ? el.parentElement.closest("details") : null;
+      if (el) el.open = true;
+    }
+  }
+
+  syncFilesSidebar(document);
+
+  document.addEventListener("input", (e) => {
+    if (!e.target.classList.contains("files-filter")) return;
+    filesFilterQuery = e.target.value;
+    syncFilesSidebar(document);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !e.target.classList.contains("files-filter")) return;
+    e.target.value = "";
+    filesFilterQuery = "";
+    syncFilesSidebar(document);
+    e.target.blur();
+  });
+
+  // Manual toggles persist; filter-driven ones don't. `toggle` doesn't
+  // bubble, so listen on the capture phase to catch it at the document.
+  document.addEventListener("toggle", (e) => {
+    const li = e.target.closest("li.file-folder");
+    if (!li || li.closest(".files nav")?.classList.contains("filtering")) return;
+    const collapsed = collapsedPaths();
+    if (e.target.open) collapsed.delete(li.dataset.path); else collapsed.add(li.dataset.path);
+    saveCollapsedPaths(collapsed);
+  }, true);
+
   // Locales menu: typing hides the locales that don't match.
   for (const input of document.querySelectorAll("[data-filter-labels]")) {
     const labels = [...input.parentElement.querySelectorAll("label")];
@@ -292,6 +356,7 @@
         }
       }
     }
+    syncFilesSidebar(current);
     for (const el of current.querySelectorAll("[data-cell]")) {
       if (before.has(el.dataset.cell) && before.get(el.dataset.cell) !== el.textContent) el.classList.add("flash");
     }

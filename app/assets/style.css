@@ -80,10 +80,22 @@ header.top nav a { text-decoration: none; }
 .files-collapsed .layout { grid-template-columns: 2rem minmax(0, 1fr); }
 .files-collapsed .files nav, .files-collapsed .files-head strong { display: none; }
 .files-collapsed .files-toggle { transform: rotate(180deg); }
-.files nav { display: grid; }
-.file-row { display: flex; justify-content: space-between; gap: .5rem; padding: .2rem .4rem; border-radius: 5px; color: inherit; text-decoration: none; font-size: .82rem; }
-.file-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, monospace; font-size: .78rem; }
+.files nav { display: grid; grid-template-columns: minmax(0, 1fr); }
+.files-filter { width: 100%; margin-bottom: .4rem; font-size: .82rem; }
+.file-tree, .file-tree ul { list-style: none; margin: 0; padding: 0; }
+.file-tree ul { padding-left: .8rem; }
+.file-tree li { min-width: 0; }
+.file-tree li.file-folder > details { display: block; }
+.file-tree summary.file-row { list-style: none; cursor: pointer; user-select: none; }
+.file-tree summary.file-row::-webkit-details-marker { display: none; }
+.file-folder summary .chevron { flex: none; width: 0; height: 0; margin: .3rem .15rem 0 0; border: .3rem solid transparent; border-left-color: var(--muted); transition: transform .12s ease; }
+.file-folder details[open] > summary .chevron { transform: rotate(90deg); }
+.file-row { display: flex; justify-content: space-between; gap: .5rem; padding: .2rem .4rem; border-radius: 5px; color: inherit; text-decoration: none; font-size: .82rem; min-width: 0; }
+.file-row span.label, .file-row a.label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, monospace; font-size: .78rem; }
 .file-row.folder span { color: var(--muted); }
+.file-row a.label { text-decoration: none; }
+.file-row.folder a.label { color: var(--muted); }
+.file-row.active a.label { color: inherit; }
 .file-row small { color: var(--muted); white-space: nowrap; }
 .file-row small em { color: var(--miss-fg); font-style: normal; }
 .file-row:hover { background: var(--soft); }

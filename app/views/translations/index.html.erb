@@ -55,13 +55,13 @@
         <button type="button" class="files-toggle" data-files-toggle aria-label="Show or hide files" title="Show or hide files">‹</button>
       </div>
       <nav>
-        <a class="file-row<%= @scope.empty? ? " active" : "" %>" href="<%= root_path(q: @query, filter: @filter) %>"><span>All files</span><small><%= @translations.key_count %></small></a>
-        <% @tree.each do |row| %>
-          <a class="file-row<%= row.folder ? " folder" : "" %><%= @scope == row.path ? " active" : "" %>" style="padding-left: <%= row.depth * 0.8 + 0.4 %>rem" href="<%= root_path(q: @query, filter: @filter, file: row.path) %>" title="<%= row.path %>">
-            <span><%= row.label %></span>
-            <small><%= row.keys %><% if row.missing > 0 %> · <em><%= row.missing %> missing</em><% end %></small>
-          </a>
-        <% end %>
+        <input type="search" class="files-filter" placeholder="Filter files" aria-label="Filter files" autocomplete="off">
+        <ul class="file-tree">
+          <li class="file-node" data-path="">
+            <a class="file-row<%= @scope.empty? ? " active" : "" %>" href="<%= root_path(q: @query, filter: @filter) %>"><span class="label">All files</span><small><%= @translations.key_count %></small></a>
+          </li>
+          <%= render "tree", nodes: @tree, scope: @scope, query: @query, filter: @filter %>
+        </ul>
       </nav>
     </aside>
 

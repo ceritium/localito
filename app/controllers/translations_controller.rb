@@ -8,7 +8,7 @@ class TranslationsController < ApplicationController
     @total = found.size
     @names = found.first(LIMIT)
     @stats = @translations.stats
-    @tree = @translations.tree(@visible)
+    @tree = nest_tree(@translations.tree(@visible))
     ref = @translations.reference
     missing_in = @filter.start_with?("missing:") ? @filter.delete_prefix("missing:") : ""
     others = (@visible + @translations.locales).reject { |l| l == ref }
@@ -154,6 +154,20 @@ class TranslationsController < ApplicationController
   end
 
   private
+
+  # The tree rows come depth-first; nest them for the files sidebar:
+  # [{ row: TreeRow, children: [...] }, ...]
+  def nest_tree(rows)
+    root = []
+    stack = []
+    rows.each do |row|
+      node = { row: row, children: [] }
+      stack.pop while stack.any? && stack.last[:row].depth >= row.depth
+      (stack.any? ? stack.last[:children] : root) << node
+      stack << node
+    end
+    root
+  end
 
   def root
     ENV["LOCALITO_ROOT"] || "."
