@@ -1,0 +1,38 @@
+name: CI
+
+# Same setup as the release build, on GitHub's runners: system packages, Ruby
+# from ruby/setup-ruby, and the spinel/tep toolchain cached under .toolchain.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      SPINRAIL_VENDOR: ${{ github.workspace }}/.toolchain
+    steps:
+      - uses: actions/checkout@v4
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y build-essential pkg-config libsqlite3-dev libssl-dev libyaml-dev
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0.0"
+          bundler-cache: true
+      # spinel and tep take minutes to build; they only change with spinrail.
+      - uses: actions/cache@v4
+        with:
+          path: .toolchain
+          key: toolchain-ubuntu-22.04-${{ hashFiles('Gemfile.lock') }}
+      - run: bin/spinrail test
