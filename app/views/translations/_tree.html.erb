@@ -1,0 +1,24 @@
+<% nodes.each do |node| %>
+  <% row = node[:row] %>
+  <% if row.folder %>
+    <li class="file-folder" data-path="<%= row.path %>">
+      <details open>
+        <summary class="file-row folder<%= scope == row.path ? " active" : "" %>">
+          <span class="chevron" aria-hidden="true"></span>
+          <a class="label" href="<%= root_path(q: query, filter: filter, file: row.path) %>" title="<%= row.path %>"><%= row.label %></a>
+          <small><%= row.keys %><% if row.missing > 0 %> · <em><%= row.missing %> missing</em><% end %></small>
+        </summary>
+        <ul>
+          <%= render "tree", nodes: node[:children], scope: scope, query: query, filter: filter %>
+        </ul>
+      </details>
+    </li>
+  <% else %>
+    <li class="file-node" data-path="<%= row.path %>">
+      <a class="file-row<%= scope == row.path ? " active" : "" %>" href="<%= root_path(q: query, filter: filter, file: row.path) %>" title="<%= row.path %>">
+        <span class="label"><%= row.label %></span>
+        <small><%= row.keys %><% if row.missing > 0 %> · <em><%= row.missing %> missing</em><% end %></small>
+      </a>
+    </li>
+  <% end %>
+<% end %>
