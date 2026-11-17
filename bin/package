@@ -12,7 +12,7 @@ stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 mkdir -p "$stage/$name/bin" "$stage/$name/libexec"
 cp bin/localito "$stage/$name/bin/localito"
-cp localito "$stage/$name/libexec/localito-server"
+cp "$(basename "$PWD")" "$stage/$name/libexec/localito-server"
 cp README.md "$stage/$name/"
 mkdir -p dist
 tar -czf "dist/$name.tar.gz" -C "$stage" "$name"

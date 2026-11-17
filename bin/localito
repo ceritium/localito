@@ -6,12 +6,14 @@ set -euo pipefail
 
 self=$(readlink -f "$0" 2>/dev/null || echo "$0")
 app=$(cd "$(dirname "$self")/.." && pwd)
-# A release has the server in libexec/; a checkout builds it in place.
+# A release has the server in libexec/; a checkout builds it in place, named
+# after its directory: spinrail names the binary that way, so a worktree under
+# .worktrees/<name> gets <name>, not "localito".
 if [ -x "$app/libexec/localito-server" ]; then
   server="$app/libexec/localito-server"
   logdir="${XDG_STATE_HOME:-$HOME/.local/state}/localito"
 else
-  server="$app/localito"
+  server="$app/$(basename "$app")"
   logdir="$app/log"
 fi
 
