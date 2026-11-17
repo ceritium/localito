@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # localito [DIR] [-c CONFIG] [-p PORT] [--no-open]   browse and edit DIR's locale files
 # localito init [DIR] [-c CONFIG]                     write the default config
+# localito grep [DIR] [-k KEY] [-v VALUE]             search the locale files
 set -euo pipefail
 
 self=$(readlink -f "$0" 2>/dev/null || echo "$0")
@@ -19,12 +20,24 @@ usage() {
 Usage:
   localito [DIR] [options]        browse and edit DIR's locale files (default: .)
   localito init [DIR] [options]   write DIR/.localito.yml with every setting
+  localito grep [DIR] [options]   search the locale files from the terminal
 
 Options:
   -c, --config PATH   config file (default: DIR/.localito.yml)
   -p, --port PORT     first port to try (default: $LOCALITO_PORT or 3900)
       --no-open       don't open the browser
   -h, --help          this help
+
+grep options:
+  -k, --key TEXT        only keys that contain TEXT
+  -v, --value TEXT      only values that contain TEXT
+  -l, --locale CODES    only these locales, comma-separated (en,es)
+  -s, --case-sensitive  don't ignore case
+      --changed         only entries that changed since --base
+      --base REF        git ref to compare with (default: from the config)
+      --no-color        plain output, no escape codes
+
+grep without -k or -v lists every entry; exit code 1 when nothing matched.
 
 The server log goes to localito.log in ~/.local/state/localito (log/ in a
 checkout).
@@ -34,6 +47,7 @@ USAGE
 command="serve"
 case "${1:-}" in
   init) command="init"; shift ;;
+  grep) command="grep"; shift ;;
   help) usage; exit 0 ;;
 esac
 
@@ -42,20 +56,40 @@ config=""
 port="${LOCALITO_PORT:-3900}"
 open_browser=1
 root_set=0
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -c|--config) config="${2:?--config needs a path}"; shift 2 ;;
-    --config=*) config="${1#*=}"; shift ;;
-    -p|--port) port="${2:?--port needs a number}"; shift 2 ;;
-    --port=*) port="${1#*=}"; shift ;;
-    --no-open) open_browser=0; shift ;;
-    -h|--help) usage; exit 0 ;;
-    -*) echo "localito: unknown option $1" >&2; usage >&2; exit 2 ;;
-    *)
-      [ $root_set -eq 0 ] || { echo "localito: one directory at a time" >&2; exit 2; }
-      root="$1"; root_set=1; shift ;;
-  esac
-done
+if [ "$command" = "grep" ]; then
+  args=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -c|--config) config="${2:?--config needs a path}"; shift 2 ;;
+      --config=*) config="${1#*=}"; shift ;;
+      -h|--help) usage; exit 0 ;;
+      -k|--key|-v|--value|-l|--locale|--base)
+        [ $# -ge 2 ] || { echo "localito: $1 needs a value" >&2; exit 2; }
+        args+=("$1" "$2"); shift 2 ;;
+      --key=*|--value=*|--locale=*|--base=*) args+=("$1"); shift ;;
+      -s|--case-sensitive|--changed|--no-color) args+=("$1"); shift ;;
+      -*) echo "localito: unknown option $1" >&2; usage >&2; exit 2 ;;
+      *)
+        [ $root_set -eq 0 ] || { echo "localito: one directory at a time" >&2; exit 2; }
+        root="$1"; root_set=1; shift ;;
+    esac
+  done
+else
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -c|--config) config="${2:?--config needs a path}"; shift 2 ;;
+      --config=*) config="${1#*=}"; shift ;;
+      -p|--port) port="${2:?--port needs a number}"; shift 2 ;;
+      --port=*) port="${1#*=}"; shift ;;
+      --no-open) open_browser=0; shift ;;
+      -h|--help) usage; exit 0 ;;
+      -*) echo "localito: unknown option $1" >&2; usage >&2; exit 2 ;;
+      *)
+        [ $root_set -eq 0 ] || { echo "localito: one directory at a time" >&2; exit 2; }
+        root="$1"; root_set=1; shift ;;
+    esac
+  done
+fi
 
 given="$root"
 root=$(cd "$root" 2>/dev/null && pwd) || { echo "localito: no such directory: $given" >&2; exit 1; }
@@ -107,8 +141,15 @@ if [ -n "$config" ] && [ ! -f "$config" ]; then
   exit 1
 fi
 
-while nc -z localhost "$port" 2>/dev/null; do port=$((port + 1)); done
 [ -x "$server" ] || (cd "$app" && bin/spinrail build)
+
+if [ "$command" = "grep" ]; then
+  set +e
+  (cd "$root" && LOCALITO_ROOT="$root" LOCALITO_CONFIG="$config" "$server" grep ${args[@]+"${args[@]}"})
+  exit $?
+fi
+
+while nc -z localhost "$port" 2>/dev/null; do port=$((port + 1)); done
 mkdir -p "$logdir"
 log="$logdir/localito.log"
 

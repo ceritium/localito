@@ -31,11 +31,13 @@ From a checkout instead, `bin/localito` builds the binary on first use.
 ```sh
 localito ~/code/my-app         # opens http://localhost:3900
 localito init ~/code/my-app    # writes ~/code/my-app/.localito.yml
+localito grep -k posts my-app  # searches the locale files in the terminal
 ```
 
 ```
 localito [DIR] [options]        browse and edit DIR's locale files (default: .)
 localito init [DIR] [options]   write DIR/.localito.yml with every setting
+localito grep [DIR] [options]   search the locale files from the terminal
 
   -c, --config PATH   config file (default: DIR/.localito.yml)
   -p, --port PORT     first port to try (default: $LOCALITO_PORT or 3900)
@@ -45,6 +47,24 @@ localito init [DIR] [options]   write DIR/.localito.yml with every setting
 The first free port from 3900 up is used, so several apps can be open at once.
 The server log goes to `~/.local/state/localito/localito.log`, or to
 `log/localito.log` when run from a checkout.
+
+### grep
+
+`localito grep` prints the locale entries matching a key or value, with their
+file and line number. It reads the same files the browser does, so it follows
+`paths` and `exclude`; no arguments lists every entry.
+
+```sh
+localito grep -k posts                  # keys containing "posts", any case
+localito grep -v entradas -l es         # Spanish values containing "entradas"
+localito grep -k title -s               # case sensitive
+localito grep --changed --base main     # only added or modified since main
+localito grep -k posts --no-color       # plain output for logs
+```
+
+`-k` and `-v` combine, `-l` takes a comma-separated list of locales, and a
+single `DIR` may be given anywhere. Exit code 1 means nothing matched; 2 is a
+usage error.
 
 ## Configuration
 
@@ -104,6 +124,8 @@ new_keys: "config/locales/%{locale}.yml"
 - **Import** a CSV or XLIFF back: a preview shows what is new, changed or
   can't be written, and only the checked values are written. A value changed
   since the preview is not overwritten. Empty values are skipped.
+- **From the terminal**, `localito grep` searches the same files by key or
+  value, with file and line numbers (`--changed` for a git ref).
 
 ## Where a new key goes
 
