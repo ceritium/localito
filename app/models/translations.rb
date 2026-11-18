@@ -152,8 +152,8 @@ class Translations
     locale = found.first
     dir = File.dirname(rel)
     base = File.basename(rel)
-    base = base.sub(/\A#{Regexp.escape(locale)}(\.ya?ml)\z/) { "*#{Regexp.last_match(1)}" }
-    base = base.sub(/\.#{Regexp.escape(locale)}(\.ya?ml)\z/) { ".*#{Regexp.last_match(1)}" }
+    base = base.sub(/\A#{Regexp.escape(locale)}(\.ya?ml|\.json)\z/) { "*#{Regexp.last_match(1)}" }
+    base = base.sub(/\.#{Regexp.escape(locale)}(\.ya?ml|\.json)\z/) { ".*#{Regexp.last_match(1)}" }
     dir = "/#{dir}/".sub("/#{locale}/", "/*/")[1..-2] unless dir == "."
     dir == "." ? base : File.join(dir, base)
   end
@@ -461,8 +461,10 @@ class Translations
     dir = File.dirname(rel)
     base = File.basename(rel)
     candidates = []
-    candidates << File.join(dir, "#{to}.yml") if base == "#{from}.yml"
-    candidates << File.join(dir, base.delete_suffix(".#{from}.yml") + ".#{to}.yml") if base.end_with?(".#{from}.yml")
+    %w[.yml .yaml .json].each do |ext|
+      candidates << File.join(dir, "#{to}#{ext}") if base == "#{from}#{ext}"
+      candidates << File.join(dir, base.delete_suffix(".#{from}#{ext}") + ".#{to}#{ext}") if base.end_with?(".#{from}#{ext}")
+    end
     candidates << rel.sub("/#{from}/", "/#{to}/") if rel.include?("/#{from}/")
     candidates.each do |c|
       return File.join(@root, c) unless c == rel
